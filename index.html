@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LFORM.1037 · Trabajo no conforme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Si el ABM de Presupuestos usa otra versión de MSAL, conviene usar la misma acá -->
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+:root{
+  --bg:#EDF1F4; --surface:#FFFFFF; --surface-2:#F5F7F9; --ink:#15222F; --ink-2:#3F5264; --muted:#687A8B;
+  --line:#D3DCE3; --brand:#123E6B; --brand-ink:#FFFFFF; --focus:#2F7DD1;
+  --danger:#B42318; --danger-bg:#FCEBE9; --warn:#8A5A00; --warn-bg:#FFF3D6; --ok:#2F6B4A; --ok-bg:#E6F2EB;
+  --radius:6px; --font:"IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1720; --surface:#16212C; --surface-2:#1C2935; --ink:#E5ECF2; --ink-2:#B5C3CF; --muted:#8798A7;
+    --line:#2B3A47; --brand:#6AA6DD; --brand-ink:#0F1720; --focus:#7DB7EC;
+    --danger:#F08A80; --danger-bg:#3A1F1E; --warn:#E5B85A; --warn-bg:#352B12; --ok:#7CC39A; --ok-bg:#16301F;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+h1,h2,h3{margin:0;font-weight:600;line-height:1.25}
+h1{font-size:1.5rem} h2{font-size:1.15rem} h3{font-size:1rem}
+p{margin:0}
+.app{display:grid;grid-template-columns:208px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100vh}
+.top{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--brand);color:var(--brand-ink);flex-wrap:wrap}
+.marca{display:flex;flex-direction:column;line-height:1.2;margin-right:auto}
+.marca strong{font-size:1.05rem}
+.marca span{font-size:.82rem;opacity:.85}
+.demo{font-size:.82rem;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);padding:4px 8px;border-radius:var(--radius)}
+.demo select{background:var(--surface);color:var(--ink);border:0;border-radius:4px;padding:2px 4px;max-width:240px}
+.quien{display:flex;flex-direction:column;text-align:right;line-height:1.2}
+.quien small{opacity:.85;font-size:.8rem}
+.top .btn.ghost{color:var(--brand-ink);border-color:rgba(255,255,255,.45)}
+.nav{background:var(--surface);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;padding:9px 12px;border-radius:var(--radius);color:var(--ink-2)}
+.nav button:hover{background:var(--surface-2)}
+.nav button[aria-current="page"]{background:var(--surface-2);color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--brand)}
+.nav button:focus-visible{outline:2px solid var(--focus)}
+.main{padding:24px 28px 48px;min-width:0}
+.cab{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.cab p{color:var(--muted);margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--line);background:var(--surface);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.prim{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.prim:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.peligro{color:var(--danger);border-color:currentColor;background:transparent}
+.btn.link{border:0;background:none;padding:0;color:var(--brand);text-decoration:underline;cursor:pointer}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.aviso{padding:10px 14px;border-radius:var(--radius);background:var(--warn-bg);color:var(--warn);margin-bottom:16px}
+.aviso.error{background:var(--danger-bg);color:var(--danger)}
+.resumen{display:flex;gap:28px;flex-wrap:wrap;padding:14px 0 18px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.resumen div{display:flex;flex-direction:column}
+.resumen b{font-size:1.35rem;font-weight:600}
+.resumen span{color:var(--muted);font-size:.85rem}
+.resumen .alto b{color:var(--danger)}
+.bloque{margin-bottom:28px}
+.bloque > h2{margin-bottom:10px}
+.vacio{color:var(--muted);padding:14px;border:1px dashed var(--line);border-radius:var(--radius);background:var(--surface)}
+/* Flujo por etapa */
+.flujo{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:0;overflow-x:auto;padding-bottom:6px}
+.carril{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--c);padding:12px;min-height:180px;position:relative;margin-right:22px}
+.carril:not(:last-child)::after{content:"";position:absolute;right:-17px;top:28px;border:7px solid transparent;border-left:9px solid var(--line)}
+.carril header{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.carril .cuenta{font-size:1.6rem;font-weight:600;color:var(--c)}
+.carril .sub{color:var(--muted);font-size:.83rem;margin:2px 0 10px}
+.carril.final{min-height:0;align-self:start}
+.pila{display:flex;flex-direction:column;gap:8px}
+.tarjeta{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:9px 11px;border:1px solid var(--line);border-left:3px solid var(--c, var(--line));border-radius:4px;background:var(--surface-2)}
+.tarjeta:hover{border-color:var(--ink-2)}
+.tarjeta:focus-visible{outline:2px solid var(--focus)}
+.tarjeta .num{font-weight:600;font-size:.88rem}
+.tarjeta .tit{font-size:.92rem}
+.tarjeta .meta{font-size:.8rem;color:var(--muted)}
+.chip{display:inline-block;align-self:flex-start;font-size:.75rem;padding:1px 7px;border-radius:10px;margin-top:3px;background:var(--surface);border:1px solid var(--line)}
+.chip.vencido{background:var(--danger-bg);color:var(--danger);border-color:transparent}
+.chip.porvencer{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.estado{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;white-space:nowrap}
+.estado::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+/* Tablas */
+.filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+.filtros label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:3px}
+.filtros input,.filtros select{padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);min-width:0}
+.filtros .q{flex:1 1 220px}
+.filtros .check{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:.9rem;padding-bottom:6px}
+.tabla-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th{text-align:left;font-weight:600;color:var(--ink-2);background:var(--surface-2);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td .rojo{color:var(--danger);font-weight:500}
+.cuenta-res{color:var(--muted);font-size:.85rem;margin:8px 2px}
+/* Indicadores */
+.rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.panel h3{margin-bottom:10px}
+.barra{display:grid;grid-template-columns:minmax(110px,40%) 1fr 34px;gap:10px;align-items:center;font-size:.86rem;padding:3px 0}
+.barra .pista{height:12px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+.barra .pista i{display:block;height:100%;background:var(--brand)}
+.barra .pista i.gris{background:var(--muted)}
+.barra b{text-align:right;font-weight:600}
+.meses{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:8px}
+.meses div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:.72rem;color:var(--muted);min-width:14px}
+.meses div i{width:100%;max-width:28px;background:var(--brand);border-radius:2px 2px 0 0;min-height:1px}
+.meses div b{color:var(--ink);font-weight:500}
+/* Panel de caso */
+.fondo{position:fixed;inset:0;background:rgba(10,20,30,.45);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(940px,100%);background:var(--bg);z-index:21;display:flex;flex-direction:column;box-shadow:-8px 0 24px rgba(0,0,0,.2)}
+.drawer > header{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;gap:14px;align-items:flex-start}
+.drawer > header .t{margin-right:auto}
+.drawer > header .t p{color:var(--muted);font-size:.85rem;margin-top:2px}
+.cuerpo{overflow-y:auto;padding:18px 20px 30px;flex:1}
+.pasos{display:flex;gap:0;margin-bottom:18px}
+.pasos li{list-style:none;flex:1;padding:8px 10px;border-top:3px solid var(--line);font-size:.83rem;color:var(--muted)}
+.pasos li b{display:block;color:var(--ink-2);font-weight:600}
+.pasos li.hecho{border-color:var(--ok)}
+.pasos li.actual{border-color:var(--brand)}
+.pasos li.actual b{color:var(--ink)}
+.pasos ol,.pasos{padding:0}
+.seccion{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px}
+.seccion > header{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.seccion > header span{font-size:.83rem;color:var(--muted)}
+.seccion.bloqueada{background:var(--surface-2)}
+.campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;padding:14px}
+.campo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.campo.ancho{grid-column:1/-1}
+.campo label{font-size:.83rem;color:var(--ink-2);font-weight:500}
+.campo label .req{color:var(--danger);margin-left:2px}
+.campo input,.campo select,.campo textarea{padding:7px 9px;border:1px solid var(--line);border-radius:4px;background:var(--surface);width:100%}
+.campo textarea{min-height:76px;resize:vertical}
+.campo .ayuda{font-size:.76rem;color:var(--muted)}
+.campo .valor{padding:6px 0;white-space:pre-wrap;word-break:break-word}
+.campo .valor.nada{color:var(--muted)}
+.campo.invalido input,.campo.invalido select,.campo.invalido textarea{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
+.errores{background:var(--danger-bg);color:var(--danger);padding:10px 14px;border-radius:var(--radius);margin-bottom:14px}
+.errores ul{margin:6px 0 0;padding-left:18px}
+.drawer > footer{background:var(--surface);border-top:1px solid var(--line);padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.drawer > footer .sep{margin-left:auto}
+.hist td{font-size:.84rem}
+.hist .cambio{display:block}
+/* Admin */
+.admin-grid input{border:1px solid transparent;background:transparent;padding:4px 6px;width:100%;min-width:90px;border-radius:3px}
+.admin-grid input:hover{border-color:var(--line)}
+.admin-grid input:focus{border-color:var(--focus);background:var(--surface)}
+.admin-grid tr.sucio td{background:var(--warn-bg)}
+.admin-grid td{padding:3px 6px}
+/* Pantallas */
+.pantalla{min-height:100vh;display:grid;place-items:center;padding:24px}
+.pantalla .caja{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:28px;max-width:460px;width:100%}
+.pantalla .caja h1{margin-bottom:8px}
+.pantalla .caja p{color:var(--ink-2);margin-bottom:16px}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:40;display:flex;flex-direction:column;gap:8px;align-items:center}
+#toast div{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--radius);max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#toast div.error{background:var(--danger);color:#fff}
+.ocupado{position:fixed;inset:0;z-index:30;background:rgba(10,20,30,.25);display:grid;place-items:center}
+.ocupado span{background:var(--surface);padding:12px 18px;border-radius:var(--radius);border:1px solid var(--line)}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .demo{flex-wrap:wrap}
+  .demo select{max-width:100%}
+  .nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:6px}
+  .nav button[aria-current="page"]{box-shadow:inset 0 -3px 0 var(--brand)}
+  .main{padding:16px}
+  .campos{grid-template-columns:1fr}
+  .quien{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* =====================================================================
+   1. CONEXIÓN. Los valores los da quien administra Azure AD y SharePoint.
+      Con clientId vacío la app arranca en modo demostración (datos en memoria).
+   ===================================================================== */
+const CONFIG = {
+  clientId: '9d2c8b84-e764-45a7-87f3-bf31e22835b9', // misma app registrada que el ABM
+  tenantId: '0342c2c2-8340-4c84-815c-eb0a68157c04', // BCR
+  redirectUri: location.origin + location.pathname, // URL publicada, registrada en Azure AD
+  siteId: 'bcr.sharepoint.com,a5ad8297-0dcc-409d-84c1-1498c58bfb98,1413f63e-b9aa-420b-aaf5-3d5c0c3c8eee', // IABCRlabs
+  itemId: '01TNRPV3SO7C3G5YJAUJD3NEXXICKX5B3Q',     // Documentos compartidos/1037/LFORM1037_Datos.xlsx
+  scopes: ['User.Read', 'Files.ReadWrite']
+};
+const DEMO = !CONFIG.clientId;
+
+/* Semilla: catálogos por defecto y casos ficticios para el modo demostración */
+const SEED = {"cols":{"TablaCasos":["ID","Numero","Anio","Sector","Estado","FechaDeteccion","EnsayoProceso","Equipo","Clasificacion","TipoDesvio","Criticidad","Responsable","FechaObjetivo","FechaCierre","CreadoPor","CreadoEl","ModificadoPor","ModificadoEl","Version","DatosJSON"],"TablaLog":["Fecha","Usuario","CasoID","Numero","Accion","Detalle"],"TablaUsuarios":["Email","Nombre","Rol","Sector","Activo"],"TablaPermisos":["Rol","Accion","Alcance"],"TablaEstados":["Estado","Orden","EtapasEditables","ACargoDe","EsInicial","EsFinal","Color"],"TablaTransiciones":["Accion","Etiqueta","Desde","Hacia","Confirmacion"],"TablaEtapas":["Etapa","Titulo","QuienCompleta","Orden"],"TablaCampos":["Clave","Etiqueta","Etapa","Tipo","Lista","ObligatorioPara","Default","Orden","Ayuda","Activo"],"TablaReglas":["Accion","Campo","Condicion","Mensaje"],"TablaListas":["Lista","Valor","Sector","Orden","Activo"],"TablaConfiguracion":["Clave","Valor","Descripcion"]},"estados":[{"Estado":"Pendiente de evaluación","Orden":1,"EtapasEditables":"alta,evaluacion","ACargoDe":"Jefe / Coordinador del sector","EsInicial":"Sí","EsFinal":"No","Color":"#B7791F"},{"Estado":"En tratamiento","Orden":2,"EtapasEditables":"evaluacion,cierre","ACargoDe":"Jefe / Coordinador y SGI","EsInicial":"No","EsFinal":"No","Color":"#2B6CB0"},{"Estado":"Cerrado","Orden":3,"EtapasEditables":"","ACargoDe":"—","EsInicial":"No","EsFinal":"Sí","Color":"#4A7A5C"}],"transiciones":[{"Accion":"evaluar","Etiqueta":"Pasar a tratamiento","Desde":"Pendiente de evaluación","Hacia":"En tratamiento","Confirmacion":"¿Confirmás la evaluación y pasás el caso a tratamiento?"},{"Accion":"cerrar","Etiqueta":"Cerrar caso","Desde":"En tratamiento","Hacia":"Cerrado","Confirmacion":"SGI verificó el tratamiento y la evidencia. ¿Cerrás el caso?"},{"Accion":"reabrir","Etiqueta":"Reabrir","Desde":"Cerrado","Hacia":"En tratamiento","Confirmacion":"¿Reabrís el caso? Queda registrado en el historial."}],"etapas":[{"Etapa":"alta","Titulo":"Alta del sector","QuienCompleta":"Analista del sector","Orden":1},{"Etapa":"evaluacion","Titulo":"Evaluación de impacto y seguimiento","QuienCompleta":"Jefe / Coordinador","Orden":2},{"Etapa":"cierre","Titulo":"Tratamiento y cierre","QuienCompleta":"SGI","Orden":3}],"campos":[{"Clave":"Sector","Etiqueta":"Sector","Etapa":"alta","Tipo":"lista","Lista":"Sector","ObligatorioPara":"crear","Default":"sectorUsuario","Orden":1,"Ayuda":"","Activo":"Sí"},{"Clave":"FechaDeteccion","Etiqueta":"Fecha de detección","Etapa":"alta","Tipo":"fecha","Lista":"","ObligatorioPara":"crear","Default":"hoy","Orden":2,"Ayuda":"No puede ser futura.","Activo":"Sí"},{"Clave":"EnsayoProceso","Etiqueta":"Ensayo o proceso afectado","Etapa":"alta","Tipo":"lista","Lista":"EnsayoProceso","ObligatorioPara":"crear","Default":"","Orden":3,"Ayuda":"","Activo":"Sí"},{"Clave":"Equipo","Etiqueta":"Equipo asociado","Etapa":"alta","Tipo":"lista","Lista":"Equipo","ObligatorioPara":"","Default":"","Orden":4,"Ayuda":"","Activo":"Sí"},{"Clave":"Matriz","Etiqueta":"Matriz","Etapa":"alta","Tipo":"lista","Lista":"Matriz","ObligatorioPara":"","Default":"","Orden":5,"Ayuda":"","Activo":"Sí"},{"Clave":"DetectadoPor","Etiqueta":"Detectado por","Etapa":"alta","Tipo":"texto","Lista":"","ObligatorioPara":"crear","Default":"usuario","Orden":6,"Ayuda":"","Activo":"Sí"},{"Clave":"QuePaso","Etiqueta":"Qué pasó","Etapa":"alta","Tipo":"textolargo","Lista":"","ObligatorioPara":"crear","Default":"","Orden":7,"Ayuda":"","Activo":"Sí"},{"Clave":"Interrumpido","Etiqueta":"¿Se interrumpió el trabajo?","Etapa":"alta","Tipo":"lista","Lista":"SiNoNA","ObligatorioPara":"crear","Default":"","Orden":8,"Ayuda":"","Activo":"Sí"},{"Clave":"AccionInmediata","Etiqueta":"Acción inmediata","Etapa":"alta","Tipo":"textolargo","Lista":"","ObligatorioPara":"crear","Default":"","Orden":9,"Ayuda":"","Activo":"Sí"},{"Clave":"Solicitud","Etiqueta":"Solicitud asociada","Etapa":"alta","Tipo":"texto","Lista":"","ObligatorioPara":"","Default":"","Orden":10,"Ayuda":"","Activo":"Sí"},{"Clave":"Clasificacion","Etiqueta":"Clasificación","Etapa":"evaluacion","Tipo":"lista","Lista":"Clasificacion","ObligatorioPara":"evaluar,cerrar","Default":"","Orden":1,"Ayuda":"","Activo":"Sí"},{"Clave":"TipoDesvio","Etiqueta":"Tipo de desvío","Etapa":"evaluacion","Tipo":"lista","Lista":"TipoDesvio","ObligatorioPara":"evaluar,cerrar","Default":"","Orden":2,"Ayuda":"","Activo":"Sí"},{"Clave":"ComprometeValidez","Etiqueta":"¿Compromete la validez de resultados?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":3,"Ayuda":"","Activo":"Sí"},{"Clave":"RepetirEnsayo","Etiqueta":"¿Repetir el ensayo?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":4,"Ayuda":"","Activo":"Sí"},{"Clave":"RetenerInformes","Etiqueta":"¿Retener o modificar informes?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":5,"Ayuda":"","Activo":"Sí"},{"Clave":"NotificarCliente","Etiqueta":"¿Notificar al cliente?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":6,"Ayuda":"","Activo":"Sí"},{"Clave":"Aceptabilidad","Etiqueta":"Decisión sobre aceptabilidad","Etapa":"evaluacion","Tipo":"lista","Lista":"Aceptabilidad","ObligatorioPara":"cerrar","Default":"","Orden":7,"Ayuda":"","Activo":"Sí"},{"Clave":"Criticidad","Etiqueta":"Criticidad","Etapa":"evaluacion","Tipo":"lista","Lista":"Criticidad","ObligatorioPara":"cerrar","Default":"","Orden":8,"Ayuda":"","Activo":"Sí"},{"Clave":"RequiereCausa","Etiqueta":"¿Requiere análisis de causa?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":9,"Ayuda":"","Activo":"Sí"},{"Clave":"RequiereAC","Etiqueta":"¿Requiere Acción Correctiva?","Etapa":"evaluacion","Tipo":"lista","Lista":"SiNoNAPend","ObligatorioPara":"cerrar","Default":"","Orden":10,"Ayuda":"","Activo":"Sí"},{"Clave":"ImpactoDecision","Etiqueta":"Impacto y decisión (fundamento / alcance)","Etapa":"evaluacion","Tipo":"textolargo","Lista":"","ObligatorioPara":"cerrar","Default":"","Orden":11,"Ayuda":"Alcance sobre muestras, ensayos e informes. Registrar la concesión o disposición SNC si aplica.","Activo":"Sí"},{"Clave":"Responsable","Etiqueta":"Responsable del tratamiento","Etapa":"evaluacion","Tipo":"usuario","Lista":"","ObligatorioPara":"evaluar,cerrar","Default":"","Orden":12,"Ayuda":"","Activo":"Sí"},{"Clave":"FechaObjetivo","Etiqueta":"Fecha objetivo de cierre","Etapa":"evaluacion","Tipo":"fecha","Lista":"","ObligatorioPara":"evaluar","Default":"","Orden":13,"Ayuda":"","Activo":"Sí"},{"Clave":"InicioInterrupcion","Etiqueta":"Inicio de interrupción","Etapa":"evaluacion","Tipo":"fechahora","Lista":"","ObligatorioPara":"","Default":"","Orden":14,"Ayuda":"","Activo":"Sí"},{"Clave":"Reanudacion","Etiqueta":"Fecha de reanudación de trabajo","Etapa":"evaluacion","Tipo":"fechahora","Lista":"","ObligatorioPara":"","Default":"","Orden":15,"Ayuda":"","Activo":"Sí"},{"Clave":"AutorizaReanudacion","Etiqueta":"Autoriza la reanudación","Etapa":"evaluacion","Tipo":"usuario","Lista":"","ObligatorioPara":"","Default":"","Orden":16,"Ayuda":"","Activo":"Sí"},{"Clave":"HorasInterrupcion","Etiqueta":"Horas de interrupción","Etapa":"evaluacion","Tipo":"calculado","Lista":"","ObligatorioPara":"","Default":"horas(InicioInterrupcion,Reanudacion)","Orden":17,"Ayuda":"Se calcula con inicio y reanudación.","Activo":"Sí"},{"Clave":"AccionFinal","Etiqueta":"Acción final y evidencia de verificación","Etapa":"cierre","Tipo":"textolargo","Lista":"","ObligatorioPara":"cerrar","Default":"","Orden":1,"Ayuda":"","Activo":"Sí"},{"Clave":"FechaCierre","Etiqueta":"Fecha de cierre","Etapa":"cierre","Tipo":"fecha","Lista":"","ObligatorioPara":"cerrar","Default":"hoy@cerrar","Orden":2,"Ayuda":"Si queda vacía, se completa con la fecha del día al cerrar.","Activo":"Sí"},{"Clave":"CerradoPor","Etiqueta":"Cerrado por","Etapa":"cierre","Tipo":"auto","Lista":"","ObligatorioPara":"","Default":"usuario@cerrar","Orden":3,"Ayuda":"Se completa al cerrar con el usuario que cierra.","Activo":"Sí"},{"Clave":"RefNCAC","Etiqueta":"Referencia NC / AC","Etapa":"cierre","Tipo":"texto","Lista":"","ObligatorioPara":"","Default":"","Orden":4,"Ayuda":"Obligatoria si requiere Acción Correctiva.","Activo":"Sí"}],"reglas":[{"Accion":"cerrar","Campo":"RefNCAC","Condicion":"RequiereAC=Sí","Mensaje":"Completar la referencia NC / AC."},{"Accion":"cerrar","Campo":"InicioInterrupcion","Condicion":"Interrumpido=Sí;Clasificacion<>SNC;Aceptabilidad<>No aceptable","Mensaje":"Completar inicio, reanudación y quién la autoriza."},{"Accion":"cerrar","Campo":"Reanudacion","Condicion":"Interrumpido=Sí;Clasificacion<>SNC;Aceptabilidad<>No aceptable","Mensaje":"Completar inicio, reanudación y quién la autoriza."},{"Accion":"cerrar","Campo":"AutorizaReanudacion","Condicion":"Interrumpido=Sí;Clasificacion<>SNC;Aceptabilidad<>No aceptable","Mensaje":"Completar inicio, reanudación y quién la autoriza."}],"listas":[{"Lista":"SiNoNA","Valor":"Sí","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"SiNoNA","Valor":"No","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"SiNoNA","Valor":"No aplica","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"SiNoNAPend","Valor":"Sí","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"SiNoNAPend","Valor":"No","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"SiNoNAPend","Valor":"No aplica","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"SiNoNAPend","Valor":"Pendiente","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"Clasificacion","Valor":"TNC","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"Clasificacion","Valor":"SNC","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"Clasificacion","Valor":"Ambos","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Equipo","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Transcripción de datos","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Control de calidad no conforme","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Recepción o conservación","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Procesamiento de muestras","Sector":"","Orden":5,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Método o procedimiento","Sector":"","Orden":6,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Reactivos o insumos","Sector":"","Orden":7,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Condiciones ambientales","Sector":"","Orden":8,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Informe o entrega","Sector":"","Orden":9,"Activo":"Sí"},{"Lista":"TipoDesvio","Valor":"Otro","Sector":"","Orden":10,"Activo":"Sí"},{"Lista":"Aceptabilidad","Valor":"Aceptable","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"Aceptabilidad","Valor":"Aceptable con condiciones","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"Aceptabilidad","Valor":"No aceptable","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"Aceptabilidad","Valor":"Pendiente","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"Aceptabilidad","Valor":"No aplica","Sector":"","Orden":5,"Activo":"Sí"},{"Lista":"Criticidad","Valor":"Baja","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"Criticidad","Valor":"Media","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"Criticidad","Valor":"Alta","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"Criticidad","Valor":"Crítica","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"Criticidad","Valor":"Pendiente","Sector":"","Orden":5,"Activo":"Sí"},{"Lista":"Matriz","Valor":"Trigo","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"Matriz","Valor":"Soja","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"Matriz","Valor":"Maíz","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"Matriz","Valor":"Aceite","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"Sector","Valor":"Fisicoquímica","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"Sector","Valor":"Microbiología","Sector":"","Orden":2,"Activo":"Sí"},{"Lista":"Sector","Valor":"Recepción y SAC","Sector":"","Orden":3,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Emisión de informes","Sector":"","Orden":1,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Determinación de humedad","Sector":"Fisicoquímica","Orden":2,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Ensayo instrumental","Sector":"Fisicoquímica","Orden":3,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Preparación de muestras","Sector":"","Orden":4,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Recuento microbiano","Sector":"Microbiología","Orden":5,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Entrega de informes","Sector":"Recepción y SAC","Orden":6,"Activo":"Sí"},{"Lista":"EnsayoProceso","Valor":"Recepción de muestras","Sector":"Recepción y SAC","Orden":7,"Activo":"Sí"},{"Lista":"Equipo","Valor":"LFT-DEMO-02","Sector":"Fisicoquímica","Orden":1,"Activo":"Sí"},{"Lista":"Equipo","Valor":"LFT-DEMO-05","Sector":"Fisicoquímica","Orden":2,"Activo":"Sí"},{"Lista":"Equipo","Valor":"LFT-DEMO-11","Sector":"Microbiología","Orden":3,"Activo":"Sí"}],"permisos":[{"Rol":"Analista","Accion":"ver","Alcance":"sector"},{"Rol":"Analista","Accion":"crear","Alcance":"sector"},{"Rol":"Analista","Accion":"editar:alta","Alcance":"sector"},{"Rol":"Analista","Accion":"exportar","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"ver","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"crear","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"editar:alta","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"editar:evaluacion","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"transicion:evaluar","Alcance":"sector"},{"Rol":"Jefe/Coordinador","Accion":"exportar","Alcance":"sector"},{"Rol":"SGI","Accion":"ver","Alcance":"todos"},{"Rol":"SGI","Accion":"editar:cierre","Alcance":"todos"},{"Rol":"SGI","Accion":"transicion:cerrar","Alcance":"todos"},{"Rol":"SGI","Accion":"exportar","Alcance":"todos"},{"Rol":"Dirección","Accion":"ver","Alcance":"todos"},{"Rol":"Dirección","Accion":"exportar","Alcance":"todos"},{"Rol":"Administrador","Accion":"ver","Alcance":"todos"},{"Rol":"Administrador","Accion":"crear","Alcance":"todos"},{"Rol":"Administrador","Accion":"editar:alta","Alcance":"todos"},{"Rol":"Administrador","Accion":"editar:evaluacion","Alcance":"todos"},{"Rol":"Administrador","Accion":"editar:cierre","Alcance":"todos"},{"Rol":"Administrador","Accion":"transicion:evaluar","Alcance":"todos"},{"Rol":"Administrador","Accion":"transicion:cerrar","Alcance":"todos"},{"Rol":"Administrador","Accion":"transicion:reabrir","Alcance":"todos"},{"Rol":"Administrador","Accion":"exportar","Alcance":"todos"},{"Rol":"Administrador","Accion":"admin","Alcance":"todos"}],"config":[{"Clave":"NombreLaboratorio","Valor":"BCRlabs","Descripcion":"Se muestra en el encabezado y en el Excel exportado."},{"Clave":"CodigoFormulario","Valor":"LFORM.1037","Descripcion":"Código del formulario controlado."},{"Clave":"VersionFormulario","Valor":"1","Descripcion":"Versión del formulario controlado."},{"Clave":"TituloFormulario","Valor":"Trabajo no conforme: alta, evaluación de impacto y seguimiento","Descripcion":""},{"Clave":"PrefijoNumero","Valor":"TNC-","Descripcion":"El número queda PREFIJO + año de detección + guion + correlativo."},{"Clave":"DigitosNumero","Valor":"4","Descripcion":"Cantidad de dígitos del correlativo anual."},{"Clave":"ValoresIncompletos","Valor":"Pendiente","Descripcion":"Valores que cuentan como vacíos al validar un cambio de estado (separados por coma)."},{"Clave":"DiasAlertaVencimiento","Valor":"3","Descripcion":"Días antes de la fecha objetivo en que un caso aparece como 'por vencer'."},{"Clave":"ToleranciaReanudacionDias","Valor":"1","Descripcion":"Días después de la fecha de cierre en que todavía se acepta la reanudación."}],"usuarios_demo":[{"Email":"analista.fq@demo","Nombre":"Ana Analista (FQ)","Rol":"Analista","Sector":"Fisicoquímica","Activo":"Sí"},{"Email":"jefe.fq@demo","Nombre":"Julio Jefe (FQ)","Rol":"Jefe/Coordinador","Sector":"Fisicoquímica","Activo":"Sí"},{"Email":"analista.micro@demo","Nombre":"Marta Analista (Micro)","Rol":"Analista","Sector":"Microbiología","Activo":"Sí"},{"Email":"jefe.sac@demo","Nombre":"Sofía Coordinadora (SAC)","Rol":"Jefe/Coordinador","Sector":"Recepción y SAC","Activo":"Sí"},{"Email":"sgi@demo","Nombre":"Silvia SGI","Rol":"SGI","Sector":"","Activo":"Sí"},{"Email":"direccion@demo","Nombre":"Diego Dirección","Rol":"Dirección","Sector":"","Activo":"Sí"},{"Email":"admin@demo","Nombre":"Admin del sistema","Rol":"Administrador","Sector":"","Activo":"Sí"}],"casos_demo":[{"ID":"demo-1","Numero":"TNC-2026-0001","Anio":2026,"Estado":"Cerrado","CreadoPor":"Analista A","CreadoEl":"2026-11-04T09:00","ModificadoPor":"Analista A","ModificadoEl":"2026-11-04T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-04","EnsayoProceso":"Emisión de informes","DetectadoPor":"Analista A","QuePaso":"Error de transcripción detectado antes de emitir.","Interrumpido":"Sí","AccionInmediata":"Se retuvo el informe.","Solicitud":"DEMO-001","Clasificacion":"TNC","TipoDesvio":"Transcripción de datos","ComprometeValidez":"No","RepetirEnsayo":"No","RetenerInformes":"Sí","NotificarCliente":"No","Aceptabilidad":"Aceptable","Criticidad":"Baja","RequiereCausa":"No","RequiereAC":"No","ImpactoDecision":"Dato original correcto. Se verificaron todas las transcripciones de la solicitud.","Responsable":"Sofía Coordinadora (SAC)","FechaObjetivo":"2026-11-07","InicioInterrupcion":"2026-11-04T09:36","Reanudacion":"2026-11-04T12:00","AutorizaReanudacion":"Sofía Coordinadora (SAC)","AccionFinal":"Se corrigió y cotejó el informe con el registro original. Verificación documentada.","CerradoPor":"Silvia SGI","FechaCierre":"2026-11-06","Sector":"Recepción y SAC"}},{"ID":"demo-2","Numero":"TNC-2026-0002","Anio":2026,"Estado":"En tratamiento","CreadoPor":"Analista B","CreadoEl":"2026-11-05T09:00","ModificadoPor":"Analista B","ModificadoEl":"2026-11-05T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-05","EnsayoProceso":"Determinación de humedad","Equipo":"LFT-DEMO-02","Matriz":"Trigo","DetectadoPor":"Analista B","QuePaso":"Control de calidad fuera del criterio de aceptación.","Interrumpido":"Sí","AccionInmediata":"Se detuvo la secuencia y se retuvieron resultados.","Solicitud":"DEMO-002","Clasificacion":"TNC","TipoDesvio":"Control de calidad no conforme","ComprometeValidez":"Pendiente","RepetirEnsayo":"Pendiente","RetenerInformes":"Sí","NotificarCliente":"Pendiente","Aceptabilidad":"Pendiente","Criticidad":"Alta","RequiereCausa":"Sí","RequiereAC":"Pendiente","ImpactoDecision":"Se evalúa el lote desde el último control aceptable.","Responsable":"Julio Jefe (FQ)","FechaObjetivo":"2026-11-08","Sector":"Fisicoquímica"}},{"ID":"demo-3","Numero":"TNC-2026-0003","Anio":2026,"Estado":"Cerrado","CreadoPor":"Responsable SAC","CreadoEl":"2026-11-06T09:00","ModificadoPor":"Responsable SAC","ModificadoEl":"2026-11-06T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-06","EnsayoProceso":"Entrega de informes","DetectadoPor":"Responsable SAC","QuePaso":"Se incumplió el plazo de entrega acordado.","Interrumpido":"No","AccionInmediata":"Se informó la demora al cliente.","Solicitud":"DEMO-003","Clasificacion":"SNC","TipoDesvio":"Informe o entrega","ComprometeValidez":"No aplica","RepetirEnsayo":"No aplica","RetenerInformes":"No","NotificarCliente":"Sí","Aceptabilidad":"Aceptable con condiciones","Criticidad":"Media","RequiereCausa":"Sí","RequiereAC":"No","ImpactoDecision":"Resultados válidos. Cliente acepta nueva fecha de entrega.","Responsable":"Sofía Coordinadora (SAC)","FechaObjetivo":"2026-11-09","AccionFinal":"Informe entregado en la fecha aceptada por el cliente. Evidencia en correo DEMO-003.","CerradoPor":"Silvia SGI","FechaCierre":"2026-11-08","Sector":"Recepción y SAC"}},{"ID":"demo-4","Numero":"TNC-2026-0004","Anio":2026,"Estado":"En tratamiento","CreadoPor":"Analista C","CreadoEl":"2026-11-07T09:00","ModificadoPor":"Analista C","ModificadoEl":"2026-11-07T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-07","EnsayoProceso":"Preparación de muestras","Matriz":"Soja","DetectadoPor":"Analista C","QuePaso":"Se intercambiaron identificaciones durante la preparación.","Interrumpido":"Sí","AccionInmediata":"Se segregaron las alícuotas y retuvieron los informes.","Solicitud":"DEMO-004","Clasificacion":"Ambos","TipoDesvio":"Procesamiento de muestras","ComprometeValidez":"Sí","RepetirEnsayo":"Sí","RetenerInformes":"Sí","NotificarCliente":"Sí","Aceptabilidad":"No aceptable","Criticidad":"Alta","RequiereCausa":"Sí","RequiereAC":"Sí","ImpactoDecision":"Dos solicitudes afectadas. Se repite la preparación desde las muestras originales.","Responsable":"Julio Jefe (FQ)","FechaObjetivo":"2026-11-10","Sector":"Fisicoquímica"}},{"ID":"demo-5","Numero":"TNC-2026-0005","Anio":2026,"Estado":"Pendiente de evaluación","CreadoPor":"Analista D","CreadoEl":"2026-11-08T09:00","ModificadoPor":"Analista D","ModificadoEl":"2026-11-08T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-08","EnsayoProceso":"Ensayo instrumental","Equipo":"LFT-DEMO-05","Matriz":"Maíz","DetectadoPor":"Analista D","QuePaso":"El equipo perdió presión durante la corrida.","Interrumpido":"Sí","AccionInmediata":"Se detuvo y señalizó el equipo.","Solicitud":"DEMO-005","Sector":"Fisicoquímica"}},{"ID":"demo-6","Numero":"TNC-2026-0006","Anio":2026,"Estado":"Pendiente de evaluación","CreadoPor":"Analista E","CreadoEl":"2026-11-09T09:00","ModificadoPor":"Analista E","ModificadoEl":"2026-11-09T09:00","Version":1,"datos":{"FechaDeteccion":"2026-11-09","EnsayoProceso":"Recepción de muestras","Matriz":"Aceite","DetectadoPor":"Analista E","QuePaso":"Se detectó una identificación ilegible.","Interrumpido":"No","AccionInmediata":"Se aisló la muestra y se consultó al remitente.","Solicitud":"DEMO-006","Sector":"Recepción y SAC"}}]};
+
+const T = {
+  casos: 'TablaCasos', log: 'TablaLog', usuarios: 'TablaUsuarios', permisos: 'TablaPermisos',
+  estados: 'TablaEstados', transiciones: 'TablaTransiciones', etapas: 'TablaEtapas',
+  campos: 'TablaCampos', reglas: 'TablaReglas', listas: 'TablaListas', config: 'TablaConfiguracion'
+};
+const TABLAS_INICIO = [T.casos, T.usuarios, T.permisos, T.estados, T.transiciones, T.etapas, T.campos, T.reglas, T.listas, T.config];
+const TABLAS_ADMIN = [T.usuarios, T.permisos, T.listas, T.campos, T.reglas, T.estados, T.transiciones, T.etapas, T.config];
+const AYUDA_ADMIN = {
+  TablaUsuarios: 'Email igual al de la cuenta Microsoft. Rol igual a uno de TablaPermisos. Sector: uno o varios separados por coma; vacío para roles con alcance "todos". Para dar de baja, Activo = No.',
+  TablaPermisos: 'Una fila por rol y acción. Acciones: ver, crear, editar:alta, editar:evaluacion, editar:cierre, transicion:<acción>, exportar, admin. Alcance: sector o todos.',
+  TablaListas: 'Valores de las listas desplegables. Sector vacío = vale para todos. Para dar de baja un valor, Activo = No.',
+  TablaCampos: 'Tipo: texto, textolargo, fecha, fechahora, lista, sugerencia, usuario, calculado, auto. ObligatorioPara: crear, evaluar, cerrar (separadas por coma). Default: hoy, ahora, usuario, sectorUsuario o un texto; con @acción se completa al ejecutar esa acción. No cambiar la Clave de un campo en uso.',
+  TablaReglas: 'Campo obligatorio cuando se cumple la condición. Condición: Campo=Valor o Campo<>Valor; varias separadas por punto y coma.',
+  TablaEstados: 'EtapasEditables: etapas que se pueden editar en ese estado (alta, evaluacion, cierre).',
+  TablaTransiciones: 'Accion es el nombre que usan permisos, campos obligatorios y reglas.',
+  TablaEtapas: 'Títulos de las secciones del formulario.',
+  TablaConfiguracion: 'Parámetros generales.'
+};
+
+/* =====================================================================
+   2. UTILIDADES
+   ===================================================================== */
+const $ = (sel, r = document) => r.querySelector(sel);
+const $$ = (sel, r = document) => [...r.querySelectorAll(sel)];
+const s = v => (v === null || v === undefined) ? '' : String(v).trim();
+const low = v => s(v).toLowerCase();
+const esc = v => s(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const si = v => /^s[ií]$/i.test(s(v));
+const pad = n => String(n).padStart(2, '0');
+const lista = v => s(v).split(',').map(x => x.trim()).filter(Boolean);
+const pausa = (ms = 120) => new Promise(r => setTimeout(r, ms));
+
+function hoyISO() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function ahoraISO() { const d = new Date(); return `${hoyISO()}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function serialAISO(n, conHora) {
+  const d = new Date(Math.round((n - 25569) * 86400000));
+  const iso = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  return conHora ? `${iso}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` : iso;
+}
+function normFecha(v, conHora) {
+  if (v === '' || v === null || v === undefined) return '';
+  if (typeof v === 'number') return serialAISO(v, conHora);
+  const t = s(v);
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (m) { const iso = `${m[3]}-${pad(m[2])}-${pad(m[1])}`; return conHora && m[4] ? `${iso}T${pad(m[4])}:${m[5]}` : iso; }
+  return t.replace(' ', 'T').slice(0, conHora ? 16 : 10);
+}
+function parseFecha(v) {
+  const m = s(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0) : null;
+}
+function fmtFecha(v) {
+  const d = parseFecha(v); if (!d) return s(v);
+  const base = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  return /[T ]\d{2}:\d{2}/.test(s(v)) ? `${base} ${pad(d.getHours())}:${pad(d.getMinutes())}` : base;
+}
+const hoy0 = () => parseFecha(hoyISO());
+const fmtNum = n => (n === null || n === undefined || n === '') ? '—' : Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
+const dias = (a, b) => Math.round((b - a) / 86400000);
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+/* Evita que un texto que empieza con = + - @ se tome como fórmula en Excel */
+const textoSeguro = v => { const t = s(v); return /^[=+\-@]/.test(t) ? "'" + t : t; };
+
+function toast(msg, tipo) {
+  const d = document.createElement('div'); d.textContent = msg; if (tipo) d.className = tipo;
+  $('#toast').appendChild(d); setTimeout(() => d.remove(), tipo === 'error' ? 9000 : 4000);
+}
+async function ocupado(texto, fn) {
+  const o = document.createElement('div'); o.className = 'ocupado'; o.innerHTML = `<span>${esc(texto)}</span>`;
+  document.body.appendChild(o);
+  try { return await fn(); }
+  catch (e) { console.error(e); toast(e.message || String(e), 'error'); return undefined; }
+  finally { o.remove(); }
+}
+
+/* =====================================================================
+   3. ACCESO A DATOS (Graph sobre tablas de Excel, o memoria en demo)
+   ===================================================================== */
+const filaObj = (headers, arr, i) => { const o = { _i: i }; headers.forEach((h, j) => { o[h] = arr[j]; }); return o; };
+const noVacia = o => Object.keys(o).some(k => k !== '_i' && s(o[k]) !== '');
+
+let msalApp = null, cuenta = null;
+const BASE = () => `/sites/${CONFIG.siteId}/drive/items/${CONFIG.itemId}/workbook`;
+const HEADERS = {};
+
+async function tokenGraph() {
+  const req = { scopes: CONFIG.scopes, account: cuenta };
+  try { return (await msalApp.acquireTokenSilent(req)).accessToken; }
+  catch (e) { return (await msalApp.acquireTokenPopup(req)).accessToken; }
+}
+async function graph(ruta, opt = {}) {
+  const r = await fetch('https://graph.microsoft.com/v1.0' + ruta, {
+    ...opt, headers: { Authorization: 'Bearer ' + await tokenGraph(), 'Content-Type': 'application/json', ...(opt.headers || {}) }
+  });
+  if (!r.ok) {
+    let msg = `${r.status} ${r.statusText}`;
+    try { const j = await r.json(); msg = (j.error && j.error.message) || msg; } catch (_) { }
+    throw new Error('SharePoint respondió: ' + msg);
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+const DBGraph = {
+  async leer(n) {
+    const r = await graph(`${BASE()}/tables('${n}')/range?$select=values`);
+    const [cab, ...data] = r.values; const headers = cab.map(s); HEADERS[n] = headers;
+    return { headers, rows: data.map((a, i) => filaObj(headers, a, i)).filter(noVacia) };
+  },
+  async cabeceras(n) {
+    if (!HEADERS[n]) { const r = await graph(`${BASE()}/tables('${n}')/headerRowRange?$select=values`); HEADERS[n] = r.values[0].map(s); }
+    return HEADERS[n];
+  },
+  async agregar(n, obj) {
+    const h = await this.cabeceras(n);
+    const r = await graph(`${BASE()}/tables('${n}')/rows/add`, { method: 'POST', body: JSON.stringify({ values: [h.map(x => obj[x] ?? '')] }) });
+    return r.index;
+  },
+  async actualizar(n, i, obj) {
+    const h = await this.cabeceras(n);
+    await graph(`${BASE()}/tables('${n}')/rows/itemAt(index=${i})/range`, { method: 'PATCH', body: JSON.stringify({ values: [h.map(x => obj[x] ?? '')] }) });
+  },
+  async eliminar(n, i) {
+    await graph(`${BASE()}/tables('${n}')/rows/$/itemAt(index=${i})`, { method: 'DELETE' });
+  }
+};
+
+const MEM = {};
+const DBDemo = {
+  async leer(n) { await pausa(); const t = MEM[n]; return { headers: [...t.headers], rows: t.data.map((a, i) => filaObj(t.headers, a, i)).filter(noVacia) }; },
+  async agregar(n, obj) { await pausa(); const t = MEM[n]; t.data.push(t.headers.map(h => obj[h] ?? '')); return t.data.length - 1; },
+  async actualizar(n, i, obj) { await pausa(); const t = MEM[n]; t.data[i] = t.headers.map(h => obj[h] ?? ''); },
+  async eliminar(n, i) { await pausa(); MEM[n].data.splice(i, 1); }
+};
+function iniciarMemoria() {
+  for (const [n, cols] of Object.entries(SEED.cols)) MEM[n] = { headers: cols, data: [] };
+  const poner = (n, arr) => { MEM[n].data = arr.map(o => MEM[n].headers.map(h => o[h] ?? '')); };
+  poner(T.estados, SEED.estados); poner(T.transiciones, SEED.transiciones); poner(T.etapas, SEED.etapas);
+  poner(T.campos, SEED.campos); poner(T.reglas, SEED.reglas); poner(T.listas, SEED.listas);
+  poner(T.permisos, SEED.permisos); poner(T.config, SEED.config); poner(T.usuarios, SEED.usuarios_demo);
+  poner(T.casos, SEED.casos_demo.map(casoAFila));
+}
+const DB = DEMO ? DBDemo : DBGraph;
+
+/* =====================================================================
+   4. ESTADO, CATÁLOGOS Y PERMISOS
+   ===================================================================== */
+const APP = {
+  vista: 'inicio', casos: [], form: null, demoEmail: 'jefe.fq@demo', emailCuenta: '',
+  filtros: { q: '', estado: '', sector: '', clasificacion: '', desde: '', hasta: '', vencidos: false },
+  ind: { desde: '', hasta: '' },
+  admin: { tabla: T.usuarios, filas: null, headers: [], sucio: new Set(), buscar: '' },
+  avisos: []
+};
+let RAW = {}, CAT = {}, USER = null;
+const cfg = (k, def = '') => (CAT.config && s(CAT.config[k]) !== '') ? s(CAT.config[k]) : def;
+const activo = r => s(r.Activo) === '' || si(r.Activo);
+
+function armarCatalogos() {
+  const R = n => (RAW[n] ? RAW[n].rows : []);
+  CAT.config = Object.fromEntries(R(T.config).map(r => [s(r.Clave), s(r.Valor)]));
+  CAT.incompletos = lista(cfg('ValoresIncompletos', 'Pendiente')).map(low);
+  CAT.etapas = R(T.etapas).map(r => ({ etapa: s(r.Etapa), titulo: s(r.Titulo), quien: s(r.QuienCompleta), orden: +r.Orden || 0 }))
+    .sort((a, b) => a.orden - b.orden);
+  const ordenEtapa = e => { const i = CAT.etapas.findIndex(x => x.etapa === e); return i < 0 ? 99 : i; };
+  CAT.estados = R(T.estados).map(r => ({
+    estado: s(r.Estado), orden: +r.Orden || 0, editables: lista(r.EtapasEditables), aCargo: s(r.ACargoDe),
+    inicial: si(r.EsInicial), final: si(r.EsFinal), color: s(r.Color) || '#687A8B'
+  })).sort((a, b) => a.orden - b.orden);
+  CAT.transiciones = R(T.transiciones).map(r => ({ accion: s(r.Accion), etiqueta: s(r.Etiqueta) || s(r.Accion), desde: s(r.Desde), hacia: s(r.Hacia), confirmacion: s(r.Confirmacion) }));
+  CAT.campos = R(T.campos).filter(activo).map(r => ({
+    clave: s(r.Clave), etiqueta: s(r.Etiqueta) || s(r.Clave), etapa: s(r.Etapa), tipo: low(r.Tipo) || 'texto',
+    lista: s(r.Lista), obligatorio: new Set(lista(r.ObligatorioPara)), def: s(r.Default), orden: +r.Orden || 0, ayuda: s(r.Ayuda)
+  })).filter(f => f.clave).sort((a, b) => ordenEtapa(a.etapa) - ordenEtapa(b.etapa) || a.orden - b.orden);
+  CAT.reglas = R(T.reglas).map(r => ({ accion: s(r.Accion), campo: s(r.Campo), condicion: s(r.Condicion), mensaje: s(r.Mensaje) }));
+  CAT.listas = {};
+  R(T.listas).filter(activo).sort((a, b) => (+a.Orden || 0) - (+b.Orden || 0)).forEach(r => {
+    (CAT.listas[s(r.Lista)] = CAT.listas[s(r.Lista)] || []).push({ valor: s(r.Valor), sectores: lista(r.Sector) });
+  });
+  CAT.permisos = R(T.permisos).map(r => ({ rol: low(r.Rol), accion: low(r.Accion), alcance: low(r.Alcance) || 'sector' }));
+  CAT.usuarios = R(T.usuarios).map(r => ({ email: low(r.Email), nombre: s(r.Nombre) || s(r.Email), rol: s(r.Rol), sectores: lista(r.Sector), activo: activo(r) }));
+}
+const estadoDe = nombre => CAT.estados.find(e => e.estado === nombre);
+const estadoInicial = () => CAT.estados.find(e => e.inicial) || CAT.estados[0];
+const esFinal = c => !!(estadoDe(c.Estado) || {}).final;
+const campoDe = clave => CAT.campos.find(f => f.clave === clave);
+const etiquetaDe = clave => (campoDe(clave) || {}).etiqueta || clave;
+const incompleto = v => !s(v) || CAT.incompletos.includes(low(v));
+
+function identificar() {
+  const email = DEMO ? APP.demoEmail : low(cuenta && cuenta.username);
+  const alt = DEMO ? '' : low(cuenta && cuenta.idTokenClaims && cuenta.idTokenClaims.email);
+  APP.emailCuenta = email;
+  const u = CAT.usuarios.find(x => x.activo && (x.email === email || (alt && x.email === alt)));
+  USER = u ? { ...u } : null;
+}
+const permisosDe = accion => USER ? CAT.permisos.filter(p => p.rol === low(USER.rol) && p.accion === low(accion)) : [];
+function puede(accion, caso) {
+  const ps = permisosDe(accion); if (!ps.length) return false;
+  if (!caso) return true;
+  const sector = s(caso.datos ? caso.datos.Sector : caso.Sector);
+  return ps.some(p => p.alcance === 'todos' || USER.sectores.includes(sector));
+}
+const alcanceTodos = accion => permisosDe(accion).some(p => p.alcance === 'todos');
+const casosVisibles = () => APP.casos.filter(c => puede('ver', c));
+const transicionesPara = c => CAT.transiciones.filter(t => t.desde === c.Estado && puede('transicion:' + t.accion, c));
+const pendienteParaMi = c => !esFinal(c) && transicionesPara(c).length > 0;
+
+/* =====================================================================
+   5. CASOS: lectura, numeración, guardado, validación
+   ===================================================================== */
+const SISTEMA = ['ID', 'Numero', 'Anio', 'Estado', 'CreadoPor', 'CreadoEl', 'ModificadoPor', 'ModificadoEl', 'Version', 'DatosJSON'];
+function filaACaso(r) {
+  if (!s(r.ID)) return null;
+  let datos = {}, roto = false;
+  try { datos = JSON.parse(s(r.DatosJSON) || '{}'); } catch (e) { roto = true; }
+  return {
+    ID: s(r.ID), Numero: s(r.Numero), Anio: s(r.Anio), Estado: s(r.Estado), CreadoPor: s(r.CreadoPor), CreadoEl: normFecha(r.CreadoEl, true),
+    ModificadoPor: s(r.ModificadoPor), ModificadoEl: normFecha(r.ModificadoEl, true), Version: +r.Version || 0, _i: r._i, datos, roto
+  };
+}
+function casoAFila(c) {
+  const o = {
+    ID: c.ID, Numero: c.Numero, Anio: c.Anio, Estado: c.Estado, CreadoPor: textoSeguro(c.CreadoPor), CreadoEl: s(c.CreadoEl).replace('T', ' '),
+    ModificadoPor: textoSeguro(c.ModificadoPor), ModificadoEl: s(c.ModificadoEl).replace('T', ' '), Version: c.Version, DatosJSON: JSON.stringify(c.datos)
+  };
+  const cols = (SEED && SEED.cols && SEED.cols[T.casos]) || [];
+  cols.filter(h => !SISTEMA.includes(h)).forEach(h => { o[h] = textoSeguro(c.datos[h]); });
+  return o;
+}
+async function cargarTodo() {
+  const res = await Promise.all(TABLAS_INICIO.map(n => DB.leer(n).catch(e => { throw new Error(`No se pudo leer ${n}. ${e.message}`); })));
+  TABLAS_INICIO.forEach((n, i) => { RAW[n] = res[i]; });
+  armarCatalogos();
+  APP.casos = RAW[T.casos].rows.map(filaACaso).filter(Boolean);
+  revisarIntegridad();
+}
+function revisarIntegridad() {
+  APP.avisos = [];
+  const vistos = new Map();
+  APP.casos.forEach(c => {
+    if (!c.Numero) APP.avisos.push(`Hay un caso sin número (creado por ${c.CreadoPor || 'desconocido'} el ${fmtFecha(c.CreadoEl)}). Abrilo y usá "Asignar número".`);
+    else if (vistos.has(c.Numero)) APP.avisos.push(`El número ${c.Numero} está repetido. Revisar TablaCasos (no ordenar ni borrar filas).`);
+    else vistos.set(c.Numero, c);
+    if (c.roto) APP.avisos.push(`El caso ${c.Numero || c.ID} tiene la columna DatosJSON dañada.`);
+  });
+}
+
+/* Numeración por orden de llegada de las filas: dos altas simultáneas no se pisan */
+async function asignarNumero(id) {
+  const tab = await DB.leer(T.casos);
+  const filas = tab.rows.filter(r => s(r.ID));
+  const pos = filas.findIndex(r => s(r.ID) === id);
+  if (pos < 0) throw new Error('No se encontró el caso recién creado en TablaCasos.');
+  const yo = filas[pos], anio = s(yo.Anio), pref = cfg('PrefijoNumero', 'TNC-') + anio + '-';
+  let max = 0, sinNumero = 0;
+  for (const r of filas.slice(0, pos)) {
+    if (s(r.Anio) !== anio) continue;
+    const n = s(r.Numero);
+    if (!n) sinNumero++;
+    else if (n.startsWith(pref) && /^\d+$/.test(n.slice(pref.length))) max = Math.max(max, +n.slice(pref.length));
+  }
+  return { numero: pref + String(max + sinNumero + 1).padStart(+cfg('DigitosNumero', '4') || 4, '0'), indice: yo._i };
+}
+
+async function registrarLog(c, accion, detalle) {
+  try {
+    await DB.agregar(T.log, {
+      Fecha: ahoraISO().replace('T', ' '), Usuario: textoSeguro(`${USER.nombre} <${APP.emailCuenta}>`), CasoID: c.ID || '',
+      Numero: c.Numero || '', Accion: accion, Detalle: JSON.stringify(detalle).slice(0, 30000)
+    });
+  } catch (e) { toast('El cambio se guardó, pero no se pudo escribir el historial: ' + e.message, 'error'); }
+}
+
+function valorDefault(v) {
+  switch (v) {
+    case 'hoy': return hoyISO();
+    case 'ahora': return ahoraISO();
+    case 'usuario': return USER.nombre;
+    case 'sectorUsuario': {
+      const ops = opcionesLista({ lista: 'Sector' }, {});
+      return USER.sectores.length === 1 && (!ops.length || ops.includes(USER.sectores[0])) ? USER.sectores[0] : '';
+    }
+    default: return v;
+  }
+}
+function defaultsCreacion() {
+  const d = {};
+  CAT.campos.forEach(f => { const [v, acc] = f.def.split('@'); if (f.def && !acc && f.tipo !== 'calculado') d[f.clave] = valorDefault(v.trim()); });
+  return d;
+}
+function defaultsAccion(accion, d) {
+  CAT.campos.forEach(f => {
+    const [v, acc] = f.def.split('@');
+    if (acc && acc.trim() === accion && (f.tipo === 'auto' || !s(d[f.clave]))) d[f.clave] = valorDefault(v.trim());
+  });
+}
+function calcular(d) {
+  CAT.campos.filter(f => f.tipo === 'calculado').forEach(f => {
+    const m = f.def.replace(/\s/g, '').match(/^(horas|dias)\((\w+),(\w+)\)$/i);
+    if (!m) return;
+    const a = parseFecha(d[m[2]]), b = parseFecha(d[m[3]]);
+    d[f.clave] = (a && b && b >= a) ? Math.round((b - a) / (low(m[1]) === 'horas' ? 3600000 : 86400000) * 100) / 100 : '';
+  });
+}
+function cumple(condicion, d) {
+  return s(condicion).split(';').map(x => x.trim()).filter(Boolean).every(c => {
+    if (c.includes('<>')) { const [k, v] = c.split('<>'); return s(d[k.trim()]) !== s(v); }
+    const [k, v] = c.split('='); return s(d[k.trim()]) === s(v);
+  });
+}
+function requeridoPara(f, d, acciones) {
+  const a = [...f.obligatorio].filter(x => acciones.includes(x));
+  CAT.reglas.forEach(r => { if (r.campo === f.clave && acciones.includes(r.accion) && cumple(r.condicion, d)) a.push(r.accion); });
+  return [...new Set(a)];
+}
+function validar(accion, d) {
+  const errs = [];
+  const add = (campo, msg) => { if (!errs.some(e => e.msg === msg && e.campo === campo)) errs.push({ campo, msg }); };
+  CAT.campos.forEach(f => { if (f.obligatorio.has(accion) && f.tipo !== 'calculado' && incompleto(d[f.clave])) add(f.clave, `Falta completar: ${f.etiqueta}.`); });
+  CAT.reglas.forEach(r => { if (r.accion === accion && cumple(r.condicion, d) && incompleto(d[r.campo])) add(r.campo, r.mensaje || `Falta completar: ${etiquetaDe(r.campo)}.`); });
+  CAT.campos.filter(f => f.tipo === 'fecha' || f.tipo === 'fechahora').forEach(f => { if (s(d[f.clave]) && !parseFecha(d[f.clave])) add(f.clave, `${f.etiqueta}: la fecha no es válida.`); });
+  const hoy = hoy0(), det = parseFecha(d.FechaDeteccion), ini = parseFecha(d.InicioInterrupcion), rea = parseFecha(d.Reanudacion);
+  if (det && det > hoy) add('FechaDeteccion', 'La fecha de detección no puede ser futura.');
+  if (ini && rea && rea < ini) add('Reanudacion', 'La reanudación debe ser posterior al inicio de la interrupción.');
+  if (rea && rea > new Date()) add('Reanudacion', 'La reanudación no puede ser futura.');
+  const cie = parseFecha(d.FechaCierre);
+  if (accion === 'cerrar' && cie) {
+    if ((det && cie < det) || cie > hoy) add('FechaCierre', 'La fecha de cierre debe estar entre la detección y hoy.');
+    if (rea) {
+      const tol = +cfg('ToleranciaReanudacionDias', '1') || 0, lim = new Date(cie); lim.setDate(lim.getDate() + tol);
+      if (rea > lim) add('Reanudacion', `La reanudación debe ocurrir a más tardar ${tol ? tol + ' día(s) después de' : 'el día de'} la fecha de cierre.`);
+    }
+  }
+  return errs;
+}
+function diferencias(a, b) {
+  const out = {};
+  new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k => { if (s(a[k]) !== s(b[k])) out[k] = [s(a[k]), s(b[k])]; });
+  return out;
+}
+async function verificarVersion(c) {
+  const tab = await DB.leer(T.casos);
+  const r = tab.rows.find(x => s(x.ID) === c.ID);
+  if (!r) throw new Error('El caso ya no está en TablaCasos. Recargá la página.');
+  if ((+r.Version || 0) !== c.Version) {
+    throw new Error(`Otra persona modificó este caso (${s(r.ModificadoPor)}, ${fmtFecha(normFecha(r.ModificadoEl, true))}). Tus cambios no se guardaron: recargá para ver la última versión.`);
+  }
+  c._i = r._i;
+}
+
+async function crearCaso(datos) {
+  const ahora = ahoraISO();
+  const c = {
+    ID: uuid(), Numero: '', Anio: String((parseFecha(datos.FechaDeteccion) || new Date()).getFullYear()), Estado: estadoInicial().estado,
+    CreadoPor: USER.nombre, CreadoEl: ahora, ModificadoPor: USER.nombre, ModificadoEl: ahora, Version: 1, datos
+  };
+  await DB.agregar(T.casos, casoAFila(c));
+  const { numero, indice } = await asignarNumero(c.ID);
+  c.Numero = numero; c._i = indice;
+  await DB.actualizar(T.casos, indice, casoAFila(c));
+  APP.casos.push(c);
+  await registrarLog(c, 'crear', { Estado: ['', c.Estado] });
+  return c;
+}
+async function guardarCaso(c, datos, nuevoEstado, accion) {
+  const cambios = diferencias(c.datos, datos);
+  if (nuevoEstado && nuevoEstado !== c.Estado) cambios.Estado = [c.Estado, nuevoEstado];
+  if (!Object.keys(cambios).length) { toast('No hay cambios para guardar.'); return false; }
+  await verificarVersion(c);
+  const nuevo = { ...c, datos, Estado: nuevoEstado || c.Estado, Version: c.Version + 1, ModificadoPor: USER.nombre, ModificadoEl: ahoraISO() };
+  await DB.actualizar(T.casos, c._i, casoAFila(nuevo));
+  Object.assign(c, nuevo);
+  await registrarLog(c, accion, cambios);
+  return true;
+}
+async function reasignarNumero(c) {
+  await verificarVersion(c);
+  const { numero, indice } = await asignarNumero(c.ID);
+  c.Numero = numero; c._i = indice; c.Version += 1; c.ModificadoPor = USER.nombre; c.ModificadoEl = ahoraISO();
+  await DB.actualizar(T.casos, indice, casoAFila(c));
+  await registrarLog(c, 'asignar número', { Numero: ['', numero] });
+}
+
+/* =====================================================================
+   6. VISTAS
+   ===================================================================== */
+function situacion(c) {
+  if (esFinal(c)) return '';
+  const fo = parseFecha(c.datos.FechaObjetivo); if (!fo) return '';
+  const d = dias(hoy0(), fo);
+  if (d < 0) return 'vencido';
+  if (d <= (+cfg('DiasAlertaVencimiento', '3') || 0)) return 'porvencer';
+  return '';
+}
+const porUrgencia = (a, b) => {
+  const r = x => ({ vencido: 0, porvencer: 1 }[situacion(x)] ?? 2);
+  return r(a) - r(b) || s(a.datos.FechaObjetivo || '9999').localeCompare(s(b.datos.FechaObjetivo || '9999')) || s(a.datos.FechaDeteccion).localeCompare(s(b.datos.FechaDeteccion));
+};
+const colorEstado = nombre => (estadoDe(nombre) || {}).color || 'var(--muted)';
+const estadoHTML = nombre => `<span class="estado" style="--c:${esc(colorEstado(nombre))}">${esc(nombre)}</span>`;
+
+function tarjeta(c) {
+  const sit = situacion(c), det = parseFecha(c.datos.FechaDeteccion);
+  const antig = det ? dias(det, hoy0()) : null;
+  return `<button class="tarjeta" style="--c:${esc(colorEstado(c.Estado))}" data-act="abrir" data-id="${esc(c.ID)}">
+    <span class="num">${esc(c.Numero || 'Sin número')}</span>
+    <span class="tit">${esc(c.datos.EnsayoProceso || c.datos.QuePaso || '—')}</span>
+    <span class="meta">${esc(c.datos.Sector || 'Sin sector')}${antig !== null ? ` · ${antig === 0 ? 'detectado hoy' : antig + (antig === 1 ? ' día' : ' días') + ' desde la detección'}` : ''}</span>
+    ${sit ? `<span class="chip ${sit}">${sit === 'vencido' ? 'Venció' : 'Vence'} el ${esc(fmtFecha(c.datos.FechaObjetivo))}</span>` : ''}
+  </button>`;
+}
+
+function render() {
+  const nav = [['inicio', 'Inicio'], ['casos', 'Casos'], ['indicadores', 'Indicadores']];
+  if (puede('admin')) nav.push(['admin', 'Administración']);
+  const lab = cfg('NombreLaboratorio', 'BCRlabs'), cod = cfg('CodigoFormulario', 'LFORM.1037'), ver = cfg('VersionFormulario');
+  const demo = DEMO ? `<label class="demo">Demostración, no guarda en SharePoint. Ver como:
+      <select id="demoUser">${CAT.usuarios.filter(u => u.activo).map(u => `<option value="${esc(u.email)}"${u.email === APP.demoEmail ? ' selected' : ''}>${esc(u.nombre)} (${esc(u.rol)})</option>`).join('')}</select></label>` : '';
+  $('#app').innerHTML = `<div class="app">
+    <header class="top">
+      <div class="marca"><strong>${esc(lab)}</strong><span>${esc(cod)}${ver ? ' versión ' + esc(ver) : ''}. ${esc(cfg('TituloFormulario', 'Trabajo no conforme'))}</span></div>
+      ${demo}
+      <div class="quien"><span>${esc(USER.nombre)}</span><small>${esc(USER.rol)}${USER.sectores.length ? ', ' + esc(USER.sectores.join(', ')) : ''}</small></div>
+      <button class="btn ghost" data-act="recargar">Recargar</button>
+      ${DEMO ? '' : '<button class="btn ghost" data-act="salir">Salir</button>'}
+    </header>
+    <nav class="nav" aria-label="Secciones">${nav.map(([k, t]) => `<button data-act="vista" data-v="${k}"${APP.vista === k ? ' aria-current="page"' : ''}>${t}</button>`).join('')}</nav>
+    <main class="main" id="main">${vistaHTML()}</main>
+  </div>`;
+  if (APP.form) pintarDrawer();
+}
+function vistaHTML() {
+  const avisos = puede('admin') && APP.avisos.length ? `<div class="aviso error">${APP.avisos.map(esc).join('<br>')}</div>` : '';
+  switch (APP.vista) {
+    case 'casos': return avisos + vistaCasos();
+    case 'indicadores': return vistaIndicadores();
+    case 'admin': return puede('admin') ? vistaAdmin() : '';
+    default: return avisos + vistaInicio();
+  }
+}
+function repintarMain() { const m = $('#main'); if (m) m.innerHTML = vistaHTML(); }
+
+/* ---------- Inicio ---------- */
+function vistaInicio() {
+  const vis = casosVisibles(), abiertos = vis.filter(c => !esFinal(c));
+  const venc = abiertos.filter(c => situacion(c) === 'vencido').length;
+  const porv = abiertos.filter(c => situacion(c) === 'porvencer').length;
+  const anio = new Date().getFullYear();
+  const cerradosAnio = vis.filter(c => esFinal(c) && (parseFecha(c.datos.FechaCierre) || parseFecha(c.ModificadoEl) || new Date(0)).getFullYear() === anio);
+  const prom = promedioCierre(cerradosAnio);
+  const mios = vis.filter(pendienteParaMi).sort(porUrgencia);
+  const nuevo = puede('crear') ? '<button class="btn prim" data-act="nuevo">Nuevo caso</button>' : '';
+  const alcance = alcanceTodos('ver') ? 'todos los sectores' : (USER.sectores.join(', ') || 'sin sector asignado');
+
+  const carriles = CAT.estados.map(e => {
+    const lst = vis.filter(c => c.Estado === e.estado);
+    if (e.final) {
+      return `<section class="carril final" style="--c:${esc(e.color)}"><header><h3>${esc(e.estado)}</h3><span class="cuenta">${lst.length}</span></header>
+        <p class="sub">${cerradosAnio.length} cerrados en ${anio}</p><button class="btn link" data-act="ir-estado" data-estado="${esc(e.estado)}">Ver en la lista</button></section>`;
+    }
+    const orden = lst.sort(porUrgencia), max = 12;
+    return `<section class="carril" style="--c:${esc(e.color)}"><header><h3>${esc(e.estado)}</h3><span class="cuenta">${lst.length}</span></header>
+      <p class="sub">A cargo de: ${esc(e.aCargo || '—')}</p>
+      <div class="pila">${orden.slice(0, max).map(tarjeta).join('') || '<p class="sub">Sin casos.</p>'}</div>
+      ${orden.length > max ? `<p class="sub" style="margin-top:8px"><button class="btn link" data-act="ir-estado" data-estado="${esc(e.estado)}">Ver los ${orden.length}</button></p>` : ''}</section>`;
+  }).join('');
+
+  return `<div class="cab"><div><h1>Hola, ${esc(USER.nombre.split(' ')[0])}</h1><p>Casos de ${esc(alcance)}.</p></div>${nuevo}</div>
+    <div class="resumen">
+      <div><b>${abiertos.length}</b><span>Abiertos</span></div>
+      <div class="${venc ? 'alto' : ''}"><b>${venc}</b><span>Vencidos</span></div>
+      <div><b>${porv}</b><span>Vencen en ${esc(cfg('DiasAlertaVencimiento', '3'))} días o menos</span></div>
+      <div><b>${cerradosAnio.length}</b><span>Cerrados en ${anio}</span></div>
+      <div><b>${fmtNum(prom)}</b><span>Días promedio hasta el cierre (${anio})</span></div>
+    </div>
+    <section class="bloque"><h2>Esperan una acción tuya</h2>
+      ${mios.length ? `<div class="pila" style="max-width:720px">${mios.map(tarjeta).join('')}</div>`
+        : `<p class="vacio">No tenés casos esperando una acción.${nuevo ? ' Si detectaste un trabajo no conforme, cargá un caso nuevo.' : ''}</p>`}
+    </section>
+    <section class="bloque"><h2>Dónde está cada caso</h2><div class="flujo">${carriles}</div></section>`;
+}
+function promedioCierre(lst) {
+  const v = lst.map(c => { const a = parseFecha(c.datos.FechaDeteccion), b = parseFecha(c.datos.FechaCierre); return a && b ? dias(a, b) : null; }).filter(x => x !== null);
+  return v.length ? Math.round(v.reduce((x, y) => x + y, 0) / v.length * 10) / 10 : null;
+}
+
+/* ---------- Casos ---------- */
+function filtrarCasos() {
+  const f = APP.filtros, q = low(f.q);
+  return casosVisibles().filter(c => {
+    const d = c.datos;
+    if (f.estado && c.Estado !== f.estado) return false;
+    if (f.sector && d.Sector !== f.sector) return false;
+    if (f.clasificacion && (f.clasificacion === '(vacío)' ? !incompleto(d.Clasificacion) : d.Clasificacion !== f.clasificacion)) return false;
+    if (f.desde && s(d.FechaDeteccion) < f.desde) return false;
+    if (f.hasta && s(d.FechaDeteccion) > f.hasta) return false;
+    if (f.vencidos && situacion(c) !== 'vencido') return false;
+    if (q) {
+      const txt = low([c.Numero, d.EnsayoProceso, d.Equipo, d.Matriz, d.Solicitud, d.QuePaso, d.DetectadoPor, d.Responsable].join(' '));
+      if (!txt.includes(q)) return false;
+    }
+    return true;
+  }).sort((a, b) => s(b.Anio).localeCompare(s(a.Anio)) || s(b.Numero).localeCompare(s(a.Numero)));
+}
+function vistaCasos() {
+  const f = APP.filtros, vis = casosVisibles();
+  const sectores = [...new Set([...(CAT.listas.Sector || []).map(x => x.valor), ...vis.map(c => s(c.datos.Sector)).filter(Boolean)])];
+  const clas = (CAT.listas.Clasificacion || []).map(x => x.valor);
+  const opt = (vals, sel, todos) => `<option value="">${todos}</option>` + vals.map(v => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
+  return `<div class="cab"><div><h1>Casos</h1><p>Hacé clic en un caso para verlo o completarlo.</p></div>
+      <div style="display:flex;gap:8px">${puede('exportar') ? '<button class="btn" data-act="exportar">Exportar a Excel</button>' : ''}${puede('crear') ? '<button class="btn prim" data-act="nuevo">Nuevo caso</button>' : ''}</div></div>
+    <div class="filtros">
+      <label class="q">Buscar<input type="search" data-filtro="q" value="${esc(f.q)}" placeholder="Número, ensayo, equipo, solicitud, texto"></label>
+      <label>Estado<select data-filtro="estado">${opt(CAT.estados.map(e => e.estado), f.estado, 'Todos')}</select></label>
+      ${sectores.length > 1 || alcanceTodos('ver') ? `<label>Sector<select data-filtro="sector">${opt(sectores, f.sector, 'Todos')}</select></label>` : ''}
+      <label>Clasificación<select data-filtro="clasificacion">${opt([...clas, '(vacío)'], f.clasificacion, 'Todas')}</select></label>
+      <label>Detectado desde<input type="date" data-filtro="desde" value="${esc(f.desde)}"></label>
+      <label>hasta<input type="date" data-filtro="hasta" value="${esc(f.hasta)}"></label>
+      <label class="check"><input type="checkbox" data-filtro="vencidos"${f.vencidos ? ' checked' : ''}> Solo vencidos</label>
+      <button class="btn ghost" data-act="limpiar-filtros">Limpiar</button>
+    </div>
+    <div id="tablaCasos">${tablaCasosHTML()}</div>`;
+}
+function tablaCasosHTML() {
+  const lst = filtrarCasos();
+  if (!lst.length) return `<p class="vacio">No hay casos con estos filtros.</p>`;
+  return `<p class="cuenta-res">${lst.length} ${lst.length === 1 ? 'caso' : 'casos'}</p><div class="tabla-wrap"><table>
+    <thead><tr><th>Número</th><th>Detección</th><th>Sector</th><th>Ensayo o proceso</th><th>Clasificación</th><th>Criticidad</th><th>Estado</th><th>Fecha objetivo</th><th>Responsable</th></tr></thead>
+    <tbody>${lst.map(c => {
+      const d = c.datos, sit = situacion(c);
+      return `<tr class="click" data-act="abrir" data-id="${esc(c.ID)}" tabindex="0">
+        <td><b>${esc(c.Numero || 'Sin número')}</b></td><td>${esc(fmtFecha(d.FechaDeteccion))}</td><td>${esc(d.Sector)}</td>
+        <td>${esc(d.EnsayoProceso)}${d.Equipo ? `<br><small>${esc(d.Equipo)}</small>` : ''}</td><td>${esc(d.Clasificacion)}</td><td>${esc(d.Criticidad)}</td>
+        <td>${estadoHTML(c.Estado)}</td><td>${sit ? `<span class="${sit === 'vencido' ? 'rojo' : ''}">${esc(fmtFecha(d.FechaObjetivo))}${sit === 'vencido' ? ' (vencida)' : ''}</span>` : esc(fmtFecha(d.FechaObjetivo))}</td>
+        <td>${esc(d.Responsable)}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
+/* ---------- Indicadores ---------- */
+function agrupar(lst, clave, base, vacioEtiq, top) {
+  const m = new Map((base || []).filter(v => !incompleto(v)).map(v => [v, 0])); let vacios = 0;
+  lst.forEach(c => { const v = s(c.datos[clave]); if (incompleto(v)) vacios++; else m.set(v, (m.get(v) || 0) + 1); });
+  let arr = [...m.entries()];
+  if (top) arr = arr.filter(x => x[1]).sort((a, b) => b[1] - a[1]).slice(0, top);
+  if (vacios || (base && base.length)) arr.push([vacioEtiq, vacios, true]);
+  return arr;
+}
+function barras(titulo, arr) {
+  const max = Math.max(1, ...arr.map(x => x[1]));
+  return `<div class="panel"><h3>${esc(titulo)}</h3>${arr.length ? arr.map(([k, v, gris]) => `<div class="barra"><span>${esc(k)}</span><span class="pista"><i class="${gris ? 'gris' : ''}" style="width:${(v / max) * 100}%"></i></span><b>${v}</b></div>`).join('') : '<p class="sub">Sin datos.</p>'}</div>`;
+}
+function vistaIndicadores() {
+  const y = new Date().getFullYear();
+  if (!APP.ind.desde) { APP.ind.desde = `${y}-01-01`; APP.ind.hasta = `${y}-12-31`; }
+  const { desde, hasta } = APP.ind;
+  const lst = casosVisibles().filter(c => { const f = s(c.datos.FechaDeteccion); return f && f >= desde && f <= hasta; });
+  const abiertos = lst.filter(c => !esFinal(c)), cerrados = lst.filter(esFinal);
+  const venc = abiertos.filter(c => situacion(c) === 'vencido').length;
+  const horas = lst.reduce((t, c) => t + (parseFloat(c.datos.HorasInterrupcion) || 0), 0);
+  const conAC = lst.filter(c => si(c.datos.RequiereAC)).length;
+  const prom = promedioCierre(cerrados);
+  const L = n => (CAT.listas[n] || []).map(x => x.valor);
+  // meses
+  const meses = []; let d = parseFecha(desde); const fin = parseFecha(hasta);
+  while (d && fin && d <= fin && meses.length < 36) { meses.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`); d = new Date(d.getFullYear(), d.getMonth() + 1, 1); }
+  const porMes = meses.map(m => [m, lst.filter(c => s(c.datos.FechaDeteccion).startsWith(m)).length]);
+  const maxMes = Math.max(1, ...porMes.map(x => x[1]));
+  const nombreMes = m => ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][+m.slice(5) - 1] + (meses.length > 12 ? ' ' + m.slice(2, 4) : '');
+  return `<div class="cab"><div><h1>Indicadores</h1><p>Casos por fecha de detección${alcanceTodos('ver') ? '' : ', de ' + esc(USER.sectores.join(', '))}.</p></div></div>
+    <div class="filtros">
+      <label>Desde<input type="date" data-ind="desde" value="${esc(desde)}"></label>
+      <label>Hasta<input type="date" data-ind="hasta" value="${esc(hasta)}"></label>
+      <button class="btn ghost" data-act="ind-anio" data-y="${y}">Año ${y}</button>
+      <button class="btn ghost" data-act="ind-anio" data-y="${y - 1}">Año ${y - 1}</button>
+    </div>
+    <div class="resumen">
+      <div><b>${lst.length}</b><span>Casos en el período</span></div>
+      <div><b>${abiertos.length}</b><span>Abiertos</span></div>
+      <div class="${venc ? 'alto' : ''}"><b>${venc}</b><span>Abiertos vencidos</span></div>
+      <div><b>${cerrados.length}</b><span>Cerrados</span></div>
+      <div><b>${fmtNum(prom)}</b><span>Días promedio hasta el cierre</span></div>
+      <div><b>${fmtNum(Math.round(horas * 10) / 10)}</b><span>Horas de interrupción</span></div>
+      <div><b>${conAC}</b><span>Requieren acción correctiva</span></div>
+    </div>
+    <div class="rejilla">
+      <div class="panel" style="grid-column:1/-1"><h3>Casos por mes de detección</h3>
+        <div class="meses">${porMes.map(([m, v]) => `<div title="${esc(m)}: ${v}"><b>${v || ''}</b><i style="height:${(v / maxMes) * 100}%"></i><span>${nombreMes(m)}</span></div>`).join('')}</div></div>
+      ${barras('Clasificación', agrupar(lst, 'Clasificacion', L('Clasificacion'), 'Pendiente de clasificar'))}
+      ${barras('Estado', CAT.estados.map(e => [e.estado, lst.filter(c => c.Estado === e.estado).length]))}
+      ${barras('Tipo de desvío', agrupar(lst, 'TipoDesvio', L('TipoDesvio'), 'Sin tipo asignado'))}
+      ${barras('Criticidad', agrupar(lst, 'Criticidad', L('Criticidad'), 'Sin definir'))}
+      ${barras('Decisión sobre aceptabilidad', agrupar(lst, 'Aceptabilidad', L('Aceptabilidad'), 'Sin definir'))}
+      ${barras('Sector', agrupar(lst, 'Sector', [], 'Sin sector', 20))}
+      ${barras('Ensayos o procesos con más casos', agrupar(lst, 'EnsayoProceso', [], 'Sin ensayo', 10))}
+      ${barras('Equipos con más casos', agrupar(lst, 'Equipo', [], 'Sin equipo asociado', 10))}
+    </div>`;
+}
+
+/* ---------- Administración ---------- */
+function vistaAdmin() {
+  const a = APP.admin;
+  if (!a.filas) { cargarAdmin(); return '<p class="vacio">Cargando…</p>'; }
+  const q = low(a.buscar);
+  const visibles = a.filas.map((f, i) => [f, i]).filter(([f]) => !q || a.headers.some(h => low(f[h]).includes(q)));
+  return `<div class="cab"><div><h1>Administración</h1><p>Los cambios se escriben en el libro de SharePoint y quedan en el historial.</p></div></div>
+    <div class="filtros">
+      <label>Tabla<select id="adminTabla">${TABLAS_ADMIN.map(n => `<option${n === a.tabla ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label class="q">Filtrar filas<input type="search" id="adminBuscar" value="${esc(a.buscar)}"></label>
+      <button class="btn" data-act="admin-agregar">Agregar fila</button>
+      <button class="btn prim" data-act="admin-guardar"${a.sucio.size ? '' : ' disabled'}>Guardar cambios${a.sucio.size ? ` (${a.sucio.size})` : ''}</button>
+      <button class="btn ghost" data-act="admin-descartar"${a.sucio.size ? '' : ' disabled'}>Descartar</button>
+    </div>
+    <p class="cuenta-res">${esc(AYUDA_ADMIN[a.tabla] || '')}</p>
+    <div class="tabla-wrap"><table class="admin-grid"><thead><tr>${a.headers.map(h => `<th>${esc(h)}</th>`).join('')}<th></th></tr></thead>
+    <tbody>${visibles.map(([f, i]) => `<tr class="${a.sucio.has(i) ? 'sucio' : ''}">${a.headers.map(h => `<td><input data-admin-r="${i}" data-admin-h="${esc(h)}" value="${esc(f[h])}" aria-label="${esc(h)}"></td>`).join('')}
+      <td>${f._nuevo ? '' : `<button class="btn peligro" data-act="admin-borrar" data-r="${i}">Eliminar</button>`}</td></tr>`).join('')}</tbody></table></div>`;
+}
+async function cargarAdmin() {
+  const a = APP.admin;
+  const r = await ocupado('Leyendo ' + a.tabla + '…', () => DB.leer(a.tabla));
+  if (!r) return;
+  a.headers = r.headers.length ? r.headers : (SEED.cols[a.tabla] || []);
+  a.filas = r.rows.map(x => { const o = { _i: x._i }; a.headers.forEach(h => { o[h] = s(x[h]); }); return o; });
+  a.sucio = new Set();
+  if (APP.vista === 'admin') repintarMain();
+}
+async function guardarAdmin() {
+  const a = APP.admin;
+  const ok = await ocupado('Guardando…', async () => {
+    for (const i of [...a.sucio].sort((x, y) => x - y)) {
+      const f = a.filas[i], obj = {}; a.headers.forEach(h => { obj[h] = textoSeguro(f[h]); });
+      if (f._nuevo) await DB.agregar(a.tabla, obj); else await DB.actualizar(a.tabla, f._i, obj);
+    }
+    await registrarLog({ ID: '', Numero: a.tabla }, 'administración', { filasModificadas: a.sucio.size });
+    await cargarTodo(); identificar();
+    return true;
+  });
+  if (!ok) return;
+  if (!USER) { pantallaSinAcceso(); return; }
+  const roles = new Set(CAT.permisos.map(p => p.rol));
+  const sinRol = CAT.usuarios.filter(u => u.activo && !roles.has(low(u.rol)));
+  toast('Cambios guardados.' + (sinRol.length ? ` Atención: ${sinRol.map(u => u.nombre).join(', ')} tienen un rol sin permisos.` : ''), sinRol.length ? 'error' : '');
+  a.filas = null; render();
+}
+
+/* =====================================================================
+   7. PANEL DEL CASO
+   ===================================================================== */
+function opcionesLista(f, d) {
+  const items = CAT.listas[f.lista] || [];
+  let vals = items.filter(x => !x.sectores.length || !d.Sector || x.sectores.includes(d.Sector)).map(x => x.valor);
+  if (f.lista === 'Sector') {
+    const acc = APP.form && !APP.form.nuevo ? 'editar:alta' : 'crear';
+    if (USER && !alcanceTodos(acc)) vals = vals.filter(v => USER.sectores.includes(v));
+  }
+  return vals;
+}
+function campoHTML(f, d, editable, acciones) {
+  const v = s(d[f.clave]), id = 'c_' + f.clave;
+  const req = requeridoPara(f, d, acciones);
+  const NOMBRES = { crear: 'crear el caso' };
+  const reqTxt = req.length ? `<span class="req" title="Obligatorio para ${esc(req.map(r => NOMBRES[r] || (CAT.transiciones.find(t => t.accion === r) || {}).etiqueta || r).join(', ').toLowerCase())}">*</span>` : '';
+  const err = APP.form.errores.some(e => e.campo === f.clave) ? ' invalido' : '';
+  const ancho = f.tipo === 'textolargo' ? ' ancho' : '';
+  const ayuda = f.ayuda ? `<span class="ayuda">${esc(f.ayuda)}</span>` : '';
+  if (!editable || f.tipo === 'calculado' || f.tipo === 'auto') {
+    let txt = f.tipo === 'fecha' || f.tipo === 'fechahora' ? fmtFecha(v) : v;
+    if (f.tipo === 'calculado' && v !== '') txt = fmtNum(v);
+    return `<div class="campo${ancho}"><label>${esc(f.etiqueta)}${reqTxt}</label><div class="valor${txt ? '' : ' nada'}">${esc(txt || '—')}</div>${editable ? ayuda : ''}</div>`;
+  }
+  let ctrl;
+  const attrs = `id="${id}" data-campo="${esc(f.clave)}"`;
+  switch (f.tipo) {
+    case 'textolargo': ctrl = `<textarea ${attrs}>${esc(v)}</textarea>`; break;
+    case 'fecha': ctrl = `<input type="date" ${attrs} value="${esc(v.slice(0, 10))}">`; break;
+    case 'fechahora': ctrl = `<input type="datetime-local" ${attrs} value="${esc(v.slice(0, 16))}">`; break;
+    case 'lista': {
+      const ops = opcionesLista(f, d); if (v && !ops.includes(v)) ops.unshift(v);
+      ctrl = `<select ${attrs}><option value="">Elegir…</option>${ops.map(o => `<option${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`; break;
+    }
+    case 'sugerencia': case 'usuario': {
+      const ops = f.tipo === 'usuario' ? CAT.usuarios.filter(u => u.activo).map(u => u.nombre) : opcionesLista(f, d);
+      ctrl = `<input ${attrs} list="dl_${esc(f.clave)}" value="${esc(v)}"><datalist id="dl_${esc(f.clave)}">${ops.map(o => `<option value="${esc(o)}">`).join('')}</datalist>`; break;
+    }
+    default: ctrl = `<input ${attrs} value="${esc(v)}">`;
+  }
+  return `<div class="campo${ancho}${err}"><label for="${id}">${esc(f.etiqueta)}${reqTxt}</label>${ctrl}${ayuda}</div>`;
+}
+function etapasEditables() {
+  const F = APP.form;
+  if (F.nuevo) return new Set(puede('crear') ? ['alta'] : []);
+  const e = estadoDe(F.caso.Estado) || { editables: [] };
+  return new Set(e.editables.filter(et => puede('editar:' + et, F.caso)));
+}
+function drawerHTML() {
+  const F = APP.form, c = F.caso, d = F.datos;
+  const est = F.nuevo ? estadoInicial() : (estadoDe(c.Estado) || { estado: c.Estado, editables: [], final: false });
+  const editables = etapasEditables();
+  const acciones = F.nuevo ? ['crear'] : CAT.transiciones.filter(t => t.desde === c.Estado).map(t => t.accion);
+  const actualIdx = F.nuevo ? 0 : (est.final ? CAT.etapas.length : Math.max(0, CAT.etapas.findIndex(e => e.etapa === est.editables[est.editables.length - 1])));
+  const pasos = CAT.etapas.map((e, i) => `<li class="${i < actualIdx ? 'hecho' : i === actualIdx ? 'actual' : ''}"><b>${esc(e.titulo)}</b>${esc(e.quien)}</li>`).join('');
+  const secciones = CAT.etapas.map(et => {
+    const campos = CAT.campos.filter(f => f.etapa === et.etapa); if (!campos.length) return '';
+    const ed = editables.has(et.etapa);
+    if (F.nuevo && et.etapa !== 'alta' && !ed) return '';
+    return `<section class="seccion${ed ? '' : ' bloqueada'}"><header><h3>${esc(et.titulo)}</h3><span>Completa: ${esc(et.quien)}${ed ? '' : '. Solo lectura para vos en este estado.'}</span></header>
+      <div class="campos">${campos.map(f => campoHTML(f, d, ed, acciones)).join('')}</div></section>`;
+  }).join('');
+  const trs = F.nuevo ? [] : transicionesPara(c);
+  const puedeGuardar = editables.size > 0;
+  const titulo = F.nuevo ? 'Nuevo caso' : (c.Numero || 'Caso sin número');
+  const sub = F.nuevo ? `Se numera al crearlo. Queda en "${esc(estadoInicial().estado)}".`
+    : `Creado por ${esc(c.CreadoPor)} el ${esc(fmtFecha(c.CreadoEl))}. Última modificación: ${esc(c.ModificadoPor)}, ${esc(fmtFecha(c.ModificadoEl))}.`;
+  const errores = F.errores.length ? `<div class="errores" role="alert"><b>Revisá estos datos antes de continuar:</b><ul>${F.errores.map(e => `<li>${esc(e.msg)}</li>`).join('')}</ul></div>` : '';
+  const hist = F.historial ? historialHTML(F.historial) : '';
+  return `<div class="fondo" data-act="cerrar-panel"></div>
+  <div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTit">
+    <header><div class="t"><h2 id="drawerTit">${esc(titulo)}</h2><p>${sub}</p></div>${F.nuevo ? '' : estadoHTML(c.Estado)}
+      <button class="btn ghost" data-act="cerrar-panel" aria-label="Cerrar el panel">Volver</button></header>
+    <div class="cuerpo" id="drawerCuerpo">
+      <ol class="pasos">${pasos}</ol>
+      ${errores}${secciones}
+      ${!F.nuevo ? `<section class="seccion"><header><h3>Historial</h3>${F.historial ? '' : '<button class="btn link" data-act="historial">Ver quién cambió qué</button>'}</header>${hist}</section>` : ''}
+    </div>
+    <footer>
+      ${puedeGuardar ? `<button class="btn${trs.length ? '' : ' prim'}" data-act="guardar">${F.nuevo ? 'Crear caso' : 'Guardar cambios'}</button>` : ''}
+      ${trs.map(t => `<button class="btn prim" data-act="transicion" data-accion="${esc(t.accion)}">${esc(t.etiqueta)}</button>`).join('')}
+      ${!F.nuevo && !c.Numero && puede('admin') ? '<button class="btn" data-act="asignar-numero">Asignar número</button>' : ''}
+      <span class="sep"></span>
+      ${!puedeGuardar && !trs.length ? '<span class="cuenta-res">Solo lectura.</span>' : ''}
+      ${!F.nuevo && puede('exportar', c) ? '<button class="btn ghost" data-act="exportar-uno">Exportar a Excel</button>' : ''}
+    </footer>
+  </div>`;
+}
+function historialHTML(regs) {
+  if (!regs.length) return '<p class="sub" style="padding:12px 14px">Sin registros.</p>';
+  return `<div class="tabla-wrap" style="border:0"><table class="hist"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Cambios</th></tr></thead><tbody>${regs.map(r => {
+    let det = {}; try { det = JSON.parse(s(r.Detalle) || '{}'); } catch (e) { }
+    const cambios = Object.entries(det).map(([k, v]) => Array.isArray(v)
+      ? `<span class="cambio"><b>${esc(etiquetaDe(k))}</b>: ${esc((v[0] || '—').slice(0, 60))} → ${esc((v[1] || '—').slice(0, 60))}</span>` : `<span class="cambio">${esc(k)}: ${esc(v)}</span>`).join('');
+    return `<tr><td>${esc(fmtFecha(normFecha(r.Fecha, true)))}</td><td>${esc(s(r.Usuario).replace(/^'/, '').replace(/<.*>/, ''))}</td><td>${esc(r.Accion)}</td><td>${cambios}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+function pintarDrawer() {
+  const viejo = $('#drawer'), scroll = viejo ? $('#drawerCuerpo').scrollTop : 0;
+  $$('.fondo, #drawer').forEach(x => x.remove());
+  const wrap = document.createElement('div'); wrap.innerHTML = drawerHTML();
+  [...wrap.children].forEach(ch => document.body.appendChild(ch));
+  $('#drawerCuerpo').scrollTop = scroll;
+  if (!viejo) { const p = $('#drawer [data-campo]') || $('#drawer button'); if (p) p.focus(); }
+}
+function cerrarPanel() { APP.form = null; $$('.fondo, #drawer').forEach(x => x.remove()); }
+function leerFormulario() {
+  const F = APP.form, ed = etapasEditables();
+  const d = { ...F.datos };
+  $$('#drawer [data-campo]').forEach(el => { const f = campoDe(el.dataset.campo); if (f && ed.has(f.etapa)) d[f.clave] = s(el.value); });
+  calcular(d);
+  return d;
+}
+function abrirCaso(id) {
+  const c = APP.casos.find(x => x.ID === id); if (!c) return;
+  APP.form = { caso: c, nuevo: false, datos: { ...c.datos }, errores: [], historial: null };
+  pintarDrawer();
+}
+function nuevoCaso() { APP.form = { caso: null, nuevo: true, datos: defaultsCreacion(), errores: [], historial: null }; pintarDrawer(); }
+function mostrarErrores(errs) { APP.form.errores = errs; pintarDrawer(); $('#drawerCuerpo').scrollTop = 0; }
+
+async function accionGuardar() {
+  const F = APP.form, d = leerFormulario(); F.datos = d;
+  const errs = validar(F.nuevo ? 'crear' : 'guardar', d);
+  if (errs.length) return mostrarErrores(errs);
+  F.errores = [];
+  if (F.nuevo) {
+    const c = await ocupado('Creando el caso…', () => crearCaso(d));
+    if (!c) return;
+    toast(`Se creó el caso ${c.Numero}.`);
+    APP.form = { caso: c, nuevo: false, datos: { ...c.datos }, errores: [], historial: null };
+  } else {
+    const ok = await ocupado('Guardando…', () => guardarCaso(F.caso, d, null, 'editar'));
+    if (!ok) return;
+    toast('Cambios guardados.'); F.datos = { ...F.caso.datos }; F.historial = null;
+  }
+  repintarMain(); pintarDrawer();
+}
+async function accionTransicion(accion) {
+  const F = APP.form, t = transicionesPara(F.caso).find(x => x.accion === accion); if (!t) return;
+  const d = leerFormulario(); defaultsAccion(accion, d); calcular(d); F.datos = d;
+  const errs = validar(accion, d);
+  if (errs.length) return mostrarErrores(errs);
+  F.errores = [];
+  if (t.confirmacion && !confirm(t.confirmacion)) { pintarDrawer(); return; }
+  const ok = await ocupado('Guardando…', () => guardarCaso(F.caso, d, t.hacia, accion));
+  if (!ok) { pintarDrawer(); return; }
+  toast(`${F.caso.Numero}: ${t.hacia}.`); F.datos = { ...F.caso.datos }; F.historial = null;
+  repintarMain(); pintarDrawer();
+}
+
+/* =====================================================================
+   8. EXPORTAR A EXCEL
+   ===================================================================== */
+function serialExcel(iso) {
+  const d = parseFecha(iso); if (!d) return null;
+  return (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()) - Date.UTC(1899, 11, 30)) / 86400000;
+}
+function exportar(casos, nombre) {
+  if (!window.XLSX) { toast('No se pudo cargar la librería de Excel. Revisá la conexión y recargá.', 'error'); return; }
+  const campos = CAT.campos;
+  const head = ['N.º de registro', 'Estado', ...campos.map(f => f.etiqueta), 'Creado por', 'Creado el', 'Modificado por', 'Modificado el'];
+  const tipos = ['texto', 'texto', ...campos.map(f => f.tipo), 'texto', 'fechahora', 'texto', 'fechahora'];
+  const filas = casos.map(c => [c.Numero, c.Estado, ...campos.map(f => c.datos[f.clave] ?? ''), c.CreadoPor, c.CreadoEl, c.ModificadoPor, c.ModificadoEl]);
+  const titulo = `${cfg('NombreLaboratorio', 'BCRlabs')} | ${cfg('CodigoFormulario', 'LFORM.1037')}${cfg('VersionFormulario') ? ' versión ' + cfg('VersionFormulario') : ''}. ${cfg('TituloFormulario', '')}`;
+  const pie = `Exportado el ${fmtFecha(ahoraISO())} por ${USER.nombre}. ${casos.length} casos.`;
+  const aoa = [[titulo], [pie], [], head, ...filas.map(r => r.map((v, j) => {
+    if ((tipos[j] === 'fecha' || tipos[j] === 'fechahora') && parseFecha(v)) return serialExcel(v);
+    if (tipos[j] === 'calculado' && v !== '' && !isNaN(+v)) return +v;
+    return s(v);
+  }))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const fila0 = 3;
+  head.forEach((h, j) => {
+    const ref = XLSX.utils.encode_cell({ r: fila0, c: j });
+    ws[ref].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '123E6B' } }, alignment: { wrapText: true, vertical: 'center' } };
+    for (let i = 0; i < filas.length; i++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: fila0 + 1 + i, c: j })]; if (!cell) continue;
+      if (cell.t === 'n' && tipos[j] === 'fecha') cell.z = 'dd/mm/yyyy';
+      if (cell.t === 'n' && tipos[j] === 'fechahora') cell.z = 'dd/mm/yyyy hh:mm';
+      cell.s = { alignment: { wrapText: tipos[j] === 'textolargo', vertical: 'top' } };
+    }
+  });
+  if (ws.A1) ws.A1.s = { font: { bold: true, sz: 12 } };
+  ws['!cols'] = tipos.map(t => ({ wch: t === 'textolargo' ? 45 : t === 'fechahora' ? 17 : 18 }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ r: fila0, c: 0 }, { r: fila0 + Math.max(filas.length, 1), c: head.length - 1 }) };
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Casos');
+  XLSX.writeFile(wb, nombre || `LFORM1037_casos_${hoyISO()}.xlsx`);
+}
+
+/* =====================================================================
+   9. PANTALLAS DE INICIO Y EVENTOS
+   ===================================================================== */
+function pantalla(titulo, texto, boton) {
+  $('#app').innerHTML = `<div class="pantalla"><div class="caja"><h1>${esc(titulo)}</h1><p>${texto}</p>${boton || ''}</div></div>`;
+}
+const pantallaSinAcceso = () => pantalla('Sin acceso',
+  `Tu cuenta (${esc(APP.emailCuenta)}) no está habilitada en LFORM.1037. Pedile al administrador que te agregue en TablaUsuarios con un rol y un sector.`,
+  DEMO ? '' : '<button class="btn" data-act="salir">Salir</button>');
+
+async function arrancar() {
+  pantalla('Cargando…', 'Leyendo los datos de SharePoint.');
+  try {
+    await cargarTodo();
+    identificar();
+    if (!USER) return pantallaSinAcceso();
+    render();
+  } catch (e) {
+    console.error(e);
+    pantalla('No se pudieron cargar los datos', esc(e.message), '<button class="btn prim" data-act="reintentar">Reintentar</button>');
+  }
+}
+async function iniciar() {
+  if (DEMO) { iniciarMemoria(); return arrancar(); }
+  if (!window.msal) return pantalla('Falta el inicio de sesión', 'No se pudo cargar la librería de Microsoft (MSAL). Revisá la conexión o si la red bloquea cdn.jsdelivr.net.');
+  msalApp = new msal.PublicClientApplication({
+    auth: { clientId: CONFIG.clientId, authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri: CONFIG.redirectUri },
+    cache: { cacheLocation: 'localStorage' }
+  });
+  if (msalApp.initialize) await msalApp.initialize();
+  try { await msalApp.handleRedirectPromise(); } catch (e) { }
+  cuenta = msalApp.getAllAccounts()[0] || null;
+  if (!cuenta) return pantalla('LFORM.1037', 'Ingresá con tu cuenta de BCR para ver y cargar trabajos no conformes.', '<button class="btn prim" data-act="login">Ingresar con Microsoft</button>');
+  arrancar();
+}
+
+document.addEventListener('click', async ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act;
+  switch (act) {
+    case 'login':
+      try { const r = await msalApp.loginPopup({ scopes: CONFIG.scopes }); cuenta = r.account; arrancar(); }
+      catch (e) { toast('No se pudo iniciar sesión: ' + e.message, 'error'); }
+      break;
+    case 'salir': if (msalApp) msalApp.logoutPopup({ account: cuenta }).catch(() => { }); break;
+    case 'reintentar': arrancar(); break;
+    case 'recargar':
+      await ocupado('Recargando…', async () => { await cargarTodo(); identificar(); });
+      if (!USER) return pantallaSinAcceso();
+      APP.admin.filas = null;
+      if (APP.form && !APP.form.nuevo) { const c = APP.casos.find(x => x.ID === APP.form.caso.ID); APP.form = c ? { caso: c, nuevo: false, datos: { ...c.datos }, errores: [], historial: null } : null; }
+      render(); break;
+    case 'vista':
+      if (APP.vista === 'admin' && APP.admin.sucio.size && !confirm('Hay cambios sin guardar en Administración. ¿Salir igual?')) return;
+      APP.vista = el.dataset.v; if (APP.vista === 'admin') APP.admin.filas = null; render(); break;
+    case 'nuevo': nuevoCaso(); break;
+    case 'abrir': abrirCaso(el.dataset.id); break;
+    case 'cerrar-panel': cerrarPanel(); break;
+    case 'guardar': accionGuardar(); break;
+    case 'transicion': accionTransicion(el.dataset.accion); break;
+    case 'historial': {
+      const regs = await ocupado('Leyendo el historial…', () => DB.leer(T.log));
+      if (!regs || !APP.form) return;
+      APP.form.datos = leerFormulario();
+      APP.form.historial = regs.rows.filter(r => s(r.CasoID) === APP.form.caso.ID).reverse();
+      pintarDrawer(); break;
+    }
+    case 'asignar-numero': {
+      const c = APP.form.caso;
+      const ok = await ocupado('Asignando número…', async () => { await reasignarNumero(c); return true; });
+      if (ok) { toast('Número asignado: ' + c.Numero); revisarIntegridad(); repintarMain(); pintarDrawer(); }
+      break;
+    }
+    case 'ir-estado': APP.filtros = { ...APP.filtros, estado: el.dataset.estado, vencidos: false }; APP.vista = 'casos'; render(); break;
+    case 'limpiar-filtros': APP.filtros = { q: '', estado: '', sector: '', clasificacion: '', desde: '', hasta: '', vencidos: false }; repintarMain(); break;
+    case 'exportar': exportar(filtrarCasos()); break;
+    case 'exportar-uno': exportar([APP.form.caso], `LFORM1037_${APP.form.caso.Numero || 'caso'}.xlsx`); break;
+    case 'ind-anio': APP.ind = { desde: `${el.dataset.y}-01-01`, hasta: `${el.dataset.y}-12-31` }; repintarMain(); break;
+    case 'admin-agregar': {
+      const a = APP.admin, f = { _nuevo: true }; a.headers.forEach(h => { f[h] = ''; });
+      if (a.headers.includes('Activo')) f.Activo = 'Sí';
+      a.filas.push(f); a.sucio.add(a.filas.length - 1); a.buscar = ''; repintarMain();
+      const ins = $$(`[data-admin-r="${a.filas.length - 1}"]`); if (ins[0]) ins[0].focus();
+      break;
+    }
+    case 'admin-guardar': guardarAdmin(); break;
+    case 'admin-descartar': APP.admin.filas = null; repintarMain(); break;
+    case 'admin-borrar': {
+      const a = APP.admin, f = a.filas[+el.dataset.r];
+      if (a.sucio.size) { toast('Guardá o descartá los cambios antes de eliminar filas.', 'error'); return; }
+      const desc = a.headers.slice(0, 3).map(h => f[h]).filter(Boolean).join(', ');
+      if (!confirm(`¿Eliminar la fila "${desc}" de ${a.tabla}? No se puede deshacer.` + (a.headers.includes('Activo') ? ' Para dar de baja sin borrar, usá Activo = No.' : ''))) return;
+      const ok = await ocupado('Eliminando…', async () => {
+        await DB.eliminar(a.tabla, f._i);
+        await registrarLog({ ID: '', Numero: a.tabla }, 'administración: eliminar fila', { fila: desc });
+        await cargarTodo(); identificar(); return true;
+      });
+      if (ok) { if (!USER) return pantallaSinAcceso(); a.filas = null; render(); }
+      break;
+    }
+  }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && APP.form) cerrarPanel();
+  if (ev.key === 'Enter' && ev.target.matches('tr[data-act="abrir"]')) abrirCaso(ev.target.dataset.id);
+});
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (el.dataset.filtro === 'q') { APP.filtros.q = el.value; $('#tablaCasos').innerHTML = tablaCasosHTML(); }
+  if (el.id === 'adminBuscar') {
+    APP.admin.buscar = el.value; const pos = el.selectionStart; repintarMain();
+    const n = $('#adminBuscar'); n.focus(); n.setSelectionRange(pos, pos);
+  }
+  if (el.dataset.adminR !== undefined) {
+    const a = APP.admin, i = +el.dataset.adminR; a.filas[i][el.dataset.adminH] = el.value;
+    if (!a.sucio.has(i)) { a.sucio.add(i); el.closest('tr').classList.add('sucio'); const b = $('[data-act="admin-guardar"]'); b.disabled = false; b.textContent = `Guardar cambios (${a.sucio.size})`; $('[data-act="admin-descartar"]').disabled = false; }
+    else { $('[data-act="admin-guardar"]').textContent = `Guardar cambios (${a.sucio.size})`; }
+  }
+});
+document.addEventListener('change', ev => {
+  const el = ev.target;
+  if (el.id === 'demoUser') {
+    if (APP.form) cerrarPanel();
+    APP.demoEmail = el.value; identificar();
+    if (APP.vista === 'admin' && !puede('admin')) APP.vista = 'inicio';
+    APP.filtros.sector = ''; render(); return;
+  }
+  if (el.dataset.filtro && el.dataset.filtro !== 'q') {
+    APP.filtros[el.dataset.filtro] = el.type === 'checkbox' ? el.checked : el.value;
+    $('#tablaCasos').innerHTML = tablaCasosHTML(); return;
+  }
+  if (el.dataset.ind) { APP.ind[el.dataset.ind] = el.value; if (APP.ind.desde && APP.ind.hasta) repintarMain(); return; }
+  if (el.id === 'adminTabla') {
+    if (APP.admin.sucio.size && !confirm('Hay cambios sin guardar. ¿Cambiar de tabla igual?')) { el.value = APP.admin.tabla; return; }
+    APP.admin = { tabla: el.value, filas: null, headers: [], sucio: new Set(), buscar: '' }; repintarMain(); return;
+  }
+  if (el.dataset.campo) {
+    // Al cambiar una lista o una fecha se vuelve a dibujar: listas que dependen del sector, obligatorios condicionales y campos calculados
+    const f = campoDe(el.dataset.campo);
+    if (f && ['lista', 'fecha', 'fechahora'].includes(f.tipo)) {
+      APP.form.datos = leerFormulario();
+      if (f.clave === 'Sector') {
+        CAT.campos.filter(x => x.tipo === 'lista' && x.lista !== 'Sector').forEach(x => {
+          const v = s(APP.form.datos[x.clave]); if (v && !opcionesLista(x, APP.form.datos).includes(v)) APP.form.datos[x.clave] = '';
+        });
+      }
+      const foco = el.dataset.campo; pintarDrawer();
+      const n = $(`#drawer [data-campo="${foco}"]`); if (n) n.focus();
+    }
+  }
+});
+window.addEventListener('beforeunload', ev => { if (APP.admin.sucio.size) { ev.preventDefault(); ev.returnValue = ''; } });
+
+iniciar();
+</script>
+</body>
+</html>

@@ -153,6 +153,8 @@ td .rojo{color:var(--danger);font-weight:500}
 .hist td{font-size:.84rem}
 .hist .cambio{display:block}
 /* Admin */
+.admin-grid select{border:1px solid var(--line);background:var(--surface);padding:4px 6px;width:100%;min-width:110px;border-radius:3px}
+.admin-grid td.mal input,.admin-grid td.mal select{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
 .admin-grid input{border:1px solid transparent;background:transparent;padding:4px 6px;width:100%;min-width:90px;border-radius:3px}
 .admin-grid input:hover{border-color:var(--line)}
 .admin-grid input:focus{border-color:var(--focus);background:var(--surface)}
@@ -353,7 +355,7 @@ const APP = {
   vista: 'inicio', casos: [], form: null, demoEmail: 'jefe.fq@demo', emailCuenta: '',
   filtros: { q: '', estado: '', sector: '', clasificacion: '', desde: '', hasta: '', vencidos: false },
   ind: { desde: '', hasta: '' },
-  admin: { tabla: T.usuarios, filas: null, headers: [], sucio: new Set(), buscar: '' },
+  admin: { tabla: T.usuarios, filas: null, headers: [], sucio: new Set(), buscar: '', errores: [] },
   avisos: []
 };
 let RAW = {}, CAT = {}, USER = null;
@@ -802,6 +804,81 @@ function vistaIndicadores() {
 }
 
 /* ---------- Administración ---------- */
+/* Valores permitidos por columna en Administración: evita roles, sectores o acciones mal escritos */
+const TIPOS_CAMPO = ['texto', 'textolargo', 'fecha', 'fechahora', 'lista', 'sugerencia', 'usuario', 'calculado', 'auto'];
+const OBLIGATORIAS_ADMIN = {
+  TablaUsuarios: ['Email', 'Nombre', 'Rol', 'Activo'], TablaPermisos: ['Rol', 'Accion', 'Alcance'],
+  TablaListas: ['Lista', 'Valor'], TablaCampos: ['Clave', 'Etiqueta', 'Etapa', 'Tipo'],
+  TablaReglas: ['Accion', 'Campo'], TablaEstados: ['Estado'], TablaTransiciones: ['Accion', 'Desde', 'Hacia'],
+  TablaEtapas: ['Etapa', 'Titulo'], TablaConfiguracion: ['Clave']
+};
+function opcionesAdmin(tabla, h) {
+  const R = n => (RAW[n] ? RAW[n].rows : []);
+  const unicos = arr => [...new Set(arr.map(s).filter(Boolean))];
+  // Si se está editando la misma tabla de la que salen las opciones, se usan las filas en pantalla
+  const filas = n => (APP.admin.tabla === n && APP.admin.filas) ? APP.admin.filas : R(n);
+  const roles = unicos(filas(T.permisos).map(r => r.Rol));
+  const sectores = unicos(filas(T.listas).filter(r => s(r.Lista) === 'Sector' && activo(r)).map(r => r.Valor));
+  const etapas = unicos(filas(T.etapas).map(r => r.Etapa));
+  const estados = unicos(filas(T.estados).map(r => r.Estado));
+  const accionesTr = unicos(filas(T.transiciones).map(r => r.Accion));
+  const listas = unicos(filas(T.listas).map(r => r.Lista));
+  const claves = unicos(filas(T.campos).map(r => r.Clave));
+  if (['Activo', 'EsInicial', 'EsFinal'].includes(h)) return { modo: 'select', valores: ['Sí', 'No'] };
+  const M = {
+    TablaUsuarios: { Rol: { modo: 'select', valores: roles }, Sector: { modo: 'multi', valores: sectores } },
+    TablaPermisos: {
+      Rol: { modo: 'sugerencia', valores: roles },
+      Accion: { modo: 'select', valores: ['ver', 'crear', ...etapas.map(e => 'editar:' + e), ...accionesTr.map(a => 'transicion:' + a), 'exportar', 'admin'] },
+      Alcance: { modo: 'select', valores: ['sector', 'todos'] }
+    },
+    TablaListas: { Lista: { modo: 'sugerencia', valores: listas }, Sector: { modo: 'multi', valores: sectores } },
+    TablaCampos: {
+      Etapa: { modo: 'select', valores: etapas }, Tipo: { modo: 'select', valores: TIPOS_CAMPO },
+      Lista: { modo: 'sugerencia', valores: listas }, ObligatorioPara: { modo: 'multi', valores: ['crear', ...accionesTr] }
+    },
+    TablaReglas: { Accion: { modo: 'select', valores: ['crear', ...accionesTr] }, Campo: { modo: 'select', valores: claves } },
+    TablaEstados: { EtapasEditables: { modo: 'multi', valores: etapas } },
+    TablaTransiciones: { Desde: { modo: 'select', valores: estados }, Hacia: { modo: 'select', valores: estados } }
+  };
+  return (M[tabla] && M[tabla][h]) || null;
+}
+function celdaAdmin(f, i, h) {
+  const a = APP.admin, op = opcionesAdmin(a.tabla, h), v = s(f[h]);
+  const mal = (a.errores || []).some(e => e.r === i && e.h === h) ? ' class="mal"' : '';
+  const base = `data-admin-r="${i}" data-admin-h="${esc(h)}" aria-label="${esc(h)}"`;
+  if (op && op.modo === 'select') {
+    const vals = [...op.valores]; const fuera = v && !vals.some(x => low(x) === low(v));
+    return `<td${mal}><select ${base}><option value="">—</option>${fuera ? `<option selected>${esc(v)}</option>` : ''}${vals.map(x => `<option${low(x) === low(v) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></td>`;
+  }
+  if (op) {
+    const id = `dla_${a.tabla}_${h}`;
+    const tip = op.modo === 'multi' ? ` title="Uno o varios separados por coma: ${esc(op.valores.join(', '))}"` : '';
+    return `<td${mal}><input ${base} list="${id}" value="${esc(v)}"${tip}><datalist id="${id}">${op.valores.map(x => `<option value="${esc(x)}">`).join('')}</datalist></td>`;
+  }
+  return `<td${mal}><input ${base} value="${esc(v)}"></td>`;
+}
+function validarAdmin() {
+  const a = APP.admin, errs = [];
+  const nombreFila = f => s(f[a.headers[0]]) || s(f[a.headers[1]]) || 'fila nueva';
+  for (const i of a.sucio) {
+    const f = a.filas[i];
+    (OBLIGATORIAS_ADMIN[a.tabla] || []).forEach(h => { if (a.headers.includes(h) && !s(f[h])) errs.push({ r: i, h, msg: `${nombreFila(f)}: falta ${h}.` }); });
+    a.headers.forEach(h => {
+      const op = opcionesAdmin(a.tabla, h), v = s(f[h]);
+      if (!op || !v || op.modo === 'sugerencia') return;
+      const items = op.modo === 'multi' ? lista(v) : [v];
+      const malos = items.filter(x => !op.valores.some(y => low(y) === low(x)));
+      if (malos.length) errs.push({ r: i, h, msg: `${nombreFila(f)}: ${h} "${malos.join(', ')}" no existe. Valores posibles: ${op.valores.join(', ') || '(ninguno cargado)'}.` });
+    });
+    if (a.tabla === T.usuarios && s(f.Email) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s(f.Email))) errs.push({ r: i, h: 'Email', msg: `${nombreFila(f)}: el email no es válido.` });
+  }
+  if (a.tabla === T.usuarios) {
+    const vistos = new Map();
+    a.filas.forEach((f, i) => { const e = low(f.Email); if (!e) return; if (vistos.has(e)) errs.push({ r: i, h: 'Email', msg: `${s(f.Email)} está repetido.` }); else vistos.set(e, i); });
+  }
+  return errs;
+}
 function vistaAdmin() {
   const a = APP.admin;
   if (!a.filas) { cargarAdmin(); return '<p class="vacio">Cargando…</p>'; }
@@ -816,8 +893,9 @@ function vistaAdmin() {
       <button class="btn ghost" data-act="admin-descartar"${a.sucio.size ? '' : ' disabled'}>Descartar</button>
     </div>
     <p class="cuenta-res">${esc(AYUDA_ADMIN[a.tabla] || '')}</p>
+    ${a.errores && a.errores.length ? `<div class="errores" role="alert"><b>No se guardó. Corregí estos datos:</b><ul>${[...new Set(a.errores.map(e => e.msg))].map(m => `<li>${esc(m)}</li>`).join('')}</ul></div>` : ''}
     <div class="tabla-wrap"><table class="admin-grid"><thead><tr>${a.headers.map(h => `<th>${esc(h)}</th>`).join('')}<th></th></tr></thead>
-    <tbody>${visibles.map(([f, i]) => `<tr class="${a.sucio.has(i) ? 'sucio' : ''}">${a.headers.map(h => `<td><input data-admin-r="${i}" data-admin-h="${esc(h)}" value="${esc(f[h])}" aria-label="${esc(h)}"></td>`).join('')}
+    <tbody>${visibles.map(([f, i]) => `<tr class="${a.sucio.has(i) ? 'sucio' : ''}">${a.headers.map(h => celdaAdmin(f, i, h)).join('')}
       <td>${f._nuevo ? '' : `<button class="btn peligro" data-act="admin-borrar" data-r="${i}">Eliminar</button>`}</td></tr>`).join('')}</tbody></table></div>`;
 }
 async function cargarAdmin() {
@@ -831,6 +909,8 @@ async function cargarAdmin() {
 }
 async function guardarAdmin() {
   const a = APP.admin;
+  a.errores = validarAdmin();
+  if (a.errores.length) { repintarMain(); return; }
   const ok = await ocupado('Guardando…', async () => {
     for (const i of [...a.sucio].sort((x, y) => x - y)) {
       const f = a.filas[i], obj = {}; a.headers.forEach(h => { obj[h] = textoSeguro(f[h]); });
@@ -1134,7 +1214,7 @@ document.addEventListener('click', async ev => {
       break;
     }
     case 'admin-guardar': guardarAdmin(); break;
-    case 'admin-descartar': APP.admin.filas = null; repintarMain(); break;
+    case 'admin-descartar': APP.admin.filas = null; APP.admin.errores = []; repintarMain(); break;
     case 'admin-borrar': {
       const a = APP.admin, f = a.filas[+el.dataset.r];
       if (a.sucio.size) { toast('Guardá o descartá los cambios antes de eliminar filas.', 'error'); return; }
@@ -1182,7 +1262,7 @@ document.addEventListener('change', ev => {
   if (el.dataset.ind) { APP.ind[el.dataset.ind] = el.value; if (APP.ind.desde && APP.ind.hasta) repintarMain(); return; }
   if (el.id === 'adminTabla') {
     if (APP.admin.sucio.size && !confirm('Hay cambios sin guardar. ¿Cambiar de tabla igual?')) { el.value = APP.admin.tabla; return; }
-    APP.admin = { tabla: el.value, filas: null, headers: [], sucio: new Set(), buscar: '' }; repintarMain(); return;
+    APP.admin = { tabla: el.value, filas: null, headers: [], sucio: new Set(), buscar: '', errores: [] }; repintarMain(); return;
   }
   if (el.dataset.campo) {
     // Al cambiar una lista o una fecha se vuelve a dibujar: listas que dependen del sector, obligatorios condicionales y campos calculados

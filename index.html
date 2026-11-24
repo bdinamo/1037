@@ -1061,8 +1061,17 @@ async function arrancar() {
     pantalla('No se pudieron cargar los datos', esc(e.message), '<button class="btn prim" data-act="reintentar">Reintentar</button>');
   }
 }
+/* Si esta página se abrió dentro de la ventana emergente del login, no se arranca la app:
+   la ventana principal lee la respuesta de Microsoft y cierra el popup sola. */
+function enPopupDeLogin() {
+  try {
+    return !!window.opener && window.opener !== window &&
+      (/^msal\./i.test(window.name || '') || /[#&?](code|error|state)=/.test(location.hash + location.search));
+  } catch (e) { return false; }
+}
 async function iniciar() {
   if (DEMO) { iniciarMemoria(); return arrancar(); }
+  if (enPopupDeLogin()) return pantalla('Completando el inicio de sesión…', 'Esta ventana se cierra sola.');
   if (!window.msal) return pantalla('Falta el inicio de sesión', 'No se pudo cargar la librería de Microsoft (MSAL). Revisá la conexión o si la red bloquea cdn.jsdelivr.net.');
   msalApp = new msal.PublicClientApplication({
     auth: { clientId: CONFIG.clientId, authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri: CONFIG.redirectUri },

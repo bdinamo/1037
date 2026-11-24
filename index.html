@@ -295,16 +295,46 @@ async function tokenGraph() {
   try { return (await msalApp.acquireTokenSilent(req)).accessToken; }
   catch (e) { return (await msalApp.acquireTokenPopup(req)).accessToken; }
 }
+/* El servicio de Excel a veces responde 404, 409 o 429 de forma pasajera (archivo recién abierto o editado
+   en Excel Online, o muchas consultas juntas). Se reintenta con espera creciente. Las escrituras solo se
+   reintentan cuando la respuesta asegura que no se aplicaron, para no duplicar filas. */
 async function graph(ruta, opt = {}) {
-  const r = await fetch('https://graph.microsoft.com/v1.0' + ruta, {
-    ...opt, headers: { Authorization: 'Bearer ' + await tokenGraph(), 'Content-Type': 'application/json', ...(opt.headers || {}) }
-  });
-  if (!r.ok) {
-    let msg = `${r.status} ${r.statusText}`;
-    try { const j = await r.json(); msg = (j.error && j.error.message) || msg; } catch (_) { }
-    throw new Error('SharePoint respondió: ' + msg);
+  const metodo = (opt.method || 'GET').toUpperCase();
+  const reintentables = metodo === 'GET' ? [404, 409, 429, 500, 502, 503, 504] : [404, 409, 429];
+  const intentos = 5;
+  for (let n = 1; ; n++) {
+    const r = await fetch('https://graph.microsoft.com/v1.0' + ruta, {
+      ...opt, headers: { Authorization: 'Bearer ' + await tokenGraph(), 'Content-Type': 'application/json', ...(opt.headers || {}) }
+    });
+    if (r.ok) return r.status === 204 ? null : r.json();
+    let msg = `${r.status} ${r.statusText}`, codigo = '';
+    try { const j = await r.json(); msg = (j.error && j.error.message) || msg; codigo = (j.error && j.error.code) || ''; } catch (_) { }
+    if (n < intentos && reintentables.includes(r.status)) {
+      const espera = (+r.headers.get('Retry-After') || 0) * 1000 || 600 * 2 ** (n - 1);
+      console.warn(`Graph ${r.status} ${codigo} en ${metodo} ${ruta}. Reintento ${n} en ${espera} ms.`);
+      await pausa(espera);
+      continue;
+    }
+    const e = new Error('SharePoint respondió: ' + msg); e.status = r.status; e.codigo = codigo;
+    throw e;
   }
-  return r.status === 204 ? null : r.json();
+}
+/* Cuando la carga falla, averigua si el problema es el archivo, una tabla faltante o algo pasajero */
+async function diagnosticarLibro() {
+  try {
+    await graph(`/sites/${CONFIG.siteId}/drive/items/${CONFIG.itemId}?$select=name`);
+  } catch (e) {
+    if (e.status === 404) return 'No se encuentra el libro con el itemId configurado. ¿Se borró y se volvió a subir, o se reemplazó por otra copia? En ese caso cambia el itemId y hay que volver a obtenerlo.';
+    if (e.status === 403 || e.status === 401) return 'Tu cuenta no tiene permiso sobre el libro en SharePoint. Pedí permiso de edición sobre la carpeta 1037.';
+    return '';
+  }
+  try {
+    const r = await graph(`${BASE()}/tables?$select=name`);
+    const hay = new Set((r.value || []).map(x => x.name));
+    const faltan = TABLAS_INICIO.concat(T.log).filter(n => !hay.has(n));
+    if (faltan.length) return `El libro existe, pero no tiene estas tablas: ${faltan.join(', ')}. Puede que se hayan renombrado al editar el archivo. Revisalas en Excel (Diseño de tabla → Nombre de la tabla).`;
+    return 'El libro y todas las tablas existen: fue un error pasajero de SharePoint. Probá Reintentar.';
+  } catch (e) { return ''; }
 }
 
 const DBGraph = {
@@ -435,7 +465,16 @@ function casoAFila(c) {
   return o;
 }
 async function cargarTodo() {
-  const res = await Promise.all(TABLAS_INICIO.map(n => DB.leer(n).catch(e => { throw new Error(`No se pudo leer ${n}. ${e.message}`); })));
+  // De a 3 tablas por vez: Excel Online responde peor a muchas consultas simultáneas sobre el mismo libro
+  const res = [], cola = TABLAS_INICIO.map((n, i) => [n, i]);
+  const trabajador = async () => {
+    while (cola.length) {
+      const [n, i] = cola.shift();
+      try { res[i] = await DB.leer(n); }
+      catch (e) { const err = new Error(`No se pudo leer ${n}. ${e.message}`); err.status = e.status; throw err; }
+    }
+  };
+  await Promise.all([trabajador(), trabajador(), trabajador()]);
   TABLAS_INICIO.forEach((n, i) => { RAW[n] = res[i]; });
   armarCatalogos();
   APP.casos = RAW[T.casos].rows.map(filaACaso).filter(Boolean);
@@ -1138,7 +1177,8 @@ async function arrancar() {
     render();
   } catch (e) {
     console.error(e);
-    pantalla('No se pudieron cargar los datos', esc(e.message), '<button class="btn prim" data-act="reintentar">Reintentar</button>');
+    const diag = DEMO ? '' : await diagnosticarLibro();
+    pantalla('No se pudieron cargar los datos', esc(e.message) + (diag ? '<br><br><b>Diagnóstico:</b> ' + esc(diag) : ''), '<button class="btn prim" data-act="reintentar">Reintentar</button>');
   }
 }
 /* Si esta página se abrió dentro de la ventana emergente del login, no se arranca la app:
